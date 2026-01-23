@@ -1,0 +1,16 @@
+
+/bin/
+/build_dir/
+/staging_dir/
+/tmp/
+/logs/
+/dl/
+/feeds/
+/.config
+/.config.old
+*.o
+*.a
+*.so
+*.ipk
+.project
+.cproject
