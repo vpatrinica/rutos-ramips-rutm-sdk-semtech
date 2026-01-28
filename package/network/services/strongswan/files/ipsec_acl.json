@@ -1,0 +1,8 @@
+{
+  "user": "ipsec",
+  "access": {
+    "network.interface": {
+      "methods": ["down", "up"]
+    }
+  }
+}
