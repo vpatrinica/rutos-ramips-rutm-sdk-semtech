@@ -1791,7 +1791,8 @@ int s2e_onMsg (s2ctx_t* s2ctx, char* json, ujoff_t jsonlen) {
         LOG(MOD_S2E|ERROR, "Parsing of JSON message failed - ignored");
         return 1;   // return fail? would trigger a reconnect
     }
-    if( s2ctx->region == 0 && (msgtype == J_dnmsg || msgtype == J_dnsched || msgtype == J_dnframe) ) {
+    // hotfix: if txpow is 0, it means we haven't received router_config yet
+    if( s2ctx->txpow == 0 && (msgtype == J_dnmsg || msgtype == J_dnsched || msgtype == J_dnframe) ) {
         // Might happen if messages are still queued
         LOG(MOD_S2E|WARNING, "Received '%.*s' before 'router_config' - dropped", D.str.len, D.str.beg);
         return 1;
