@@ -1,0 +1,88 @@
+{
+  "services/basicstation": {
+    "description": "BasicStation parent ACL",
+    "read": {
+      "uci": [
+        "basicstation"
+      ]
+    },
+    "write": {
+      "uci": [
+        "basicstation"
+      ]
+    }
+  },
+  "services/basicstation/general": {
+    "description": "BasicStation General Settings",
+    "read": {
+      "uci": [
+        "basicstation"
+      ],
+      "api": [
+        "/basicstation/*"
+      ],
+      "file": {
+        "/etc/basicstation/tc.trust": [
+          "read"
+        ],
+        "/etc/basicstation/tc.key": [
+          "read"
+        ],
+        "/etc/basicstation/tc.crt": [
+          "read"
+        ]
+      }
+    },
+    "write": {
+      "uci": [
+        "basicstation"
+      ],
+      "api": [
+        "/basicstation/*"
+      ],
+      "file": {
+        "/etc/basicstation/tc.trust": [
+          "write"
+        ],
+        "/etc/basicstation/tc.key": [
+          "write"
+        ],
+        "/etc/basicstation/tc.crt": [
+          "write"
+        ]
+      }
+    }
+  },
+  "services/basicstation/advanced": {
+    "description": "BasicStation Advanced Settings",
+    "read": {
+      "uci": [
+        "basicstation"
+      ],
+      "api": [
+        "/basicstation/*"
+      ]
+    },
+    "write": {
+      "uci": [
+        "basicstation"
+      ],
+      "api": [
+        "/basicstation/*"
+      ]
+    }
+  },
+  "services/basicstation/log": {
+    "description": "BasicStation Log Messages",
+    "read": {
+      "file": {
+        "/tmp/basicstation/log": [
+          "read"
+        ]
+      },
+      "api": [
+        "/basicstation/*"
+      ]
+    }
+  }
+}

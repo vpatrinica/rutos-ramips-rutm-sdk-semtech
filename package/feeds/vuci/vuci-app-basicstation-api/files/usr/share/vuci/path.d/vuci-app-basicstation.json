@@ -1,0 +1,5 @@
+[
+    {
+        "/basicstation/{service_group}/{sid}": "services/basicstation_api"
+    }
+]

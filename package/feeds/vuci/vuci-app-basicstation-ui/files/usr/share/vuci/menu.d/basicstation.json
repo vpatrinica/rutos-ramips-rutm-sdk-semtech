@@ -1,0 +1,33 @@
+{
+  "services/basicstation": {
+    "title": "LoRaWAN BasicStation",
+    "index": 500
+  },
+  "services/basicstation/general": {
+    "title": "General Settings",
+    "acls": [
+      "services/basicstation/general"
+    ],
+    "view": "services/Basicstation",
+    "index": 10,
+    "main_page": true
+  },
+  "services/basicstation/advanced": {
+    "title": "Advanced Settings",
+    "acls": [
+      "services/basicstation/advanced"
+    ],
+    "view": "services/Basicstation",
+    "tab": "advanced",
+    "index": 20
+  },
+  "services/basicstation/log": {
+    "title": "Log Messages",
+    "acls": [
+      "services/basicstation/log"
+    ],
+    "view": "services/Basicstation",
+    "tab": "log",
+    "index": 30
+  }
+}
