@@ -1,0 +1,42 @@
+#!/bin/sh /etc/rc.common
+
+USE_PROCD=1
+START=95 # Run late in the boot process
+
+# Configuration
+LOG_FILE="/mnt/gps.nmea"
+FIFO_FILE="/mnt/gps.fifo"
+MAX_SIZE_KB=100
+
+start_service() {
+    # Ensure the FIFO exists
+    [ -p "$FIFO_FILE" ] || mkfifo "$FIFO_FILE"
+
+    # Start the bridge (tail -f)
+    procd_open_instance "bridge"
+
+    # Direct output to the FIFO via shell redirection
+    procd_set_param command sh -c "/usr/bin/tail -f $LOG_FILE > $FIFO_FILE 2>&1"
+    procd_set_param respawn
+    procd_close_instance
+    echo \"GPS_BRIDGE: startup of the pipeline complete...\" > /dev/kmsg
+
+    # Start the "Janitor" to keep the file small
+    procd_open_instance "janitor"
+    procd_set_param command sh -c "while true; do 
+        FILE_SIZE=\$(du -k $LOG_FILE | cut -f1)
+        if [ \"\$FILE_SIZE\" -gt $MAX_SIZE_KB ]; then
+            echo \"GPS_BRIDGE: $LOG_FILE reached \$FILE_SIZE KB. Truncating...\" > /dev/kmsg
+            # This is the BusyBox-friendly way to truncate
+            : > $LOG_FILE
+        fi
+        sleep 60
+    done"
+    procd_set_param respawn
+    procd_close_instance
+}
+
+stop_service() {
+    # Optional: cleanup if needed
+    return 0
+}

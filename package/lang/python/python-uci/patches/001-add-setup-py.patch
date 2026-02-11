@@ -1,0 +1,17 @@
+--- /dev/null
++++ b/setup.py
+@@ -0,0 +1,14 @@
++from setuptools import setup, Extension, find_packages
++
++setup(
++    name="pyuci",
++    version="0.10.3",
++    packages=find_packages(),
++    ext_modules=[
++        Extension(
++            "uci",
++            sources=["ucimodule.c", "pyuci.c", "pyhelper.c"],
++            libraries=["uci"],
++        )
++    ],
++)

@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=lora-basicstation
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=1
+PKG_RELEASE:=3
 
 #PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 #PKG_SOURCE_URL:=
@@ -38,6 +38,7 @@ endef
 
 define Package/lora-basicstation/conffiles
 /etc/config/basicstation
+/etc/config/tc.trust
 endef
 
 define Build/Prepare
@@ -53,6 +54,7 @@ define Package/lora-basicstation/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/station $(1)/usr/bin
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/etc/config/basicstation $(1)/etc/config/basicstation
+	$(INSTALL_CONF) ./files/etc/config/tc.trust $(1)/etc/config/tc.trust
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/etc/init.d/basicstation $(1)/etc/init.d/basicstation
 endef

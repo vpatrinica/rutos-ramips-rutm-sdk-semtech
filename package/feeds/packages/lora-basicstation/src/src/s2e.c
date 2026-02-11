@@ -1015,6 +1015,13 @@ static int handle_router_config (s2ctx_t* s2ctx, ujdec_t* D) {
                 resetDC(s2ctx, 10);      // 10%
                 break;
             }
+            case J_AS923: { // common region name
+                s2ctx->ccaEnabled = 1;
+                s2ctx->canTx = s2e_canTxPerChnlDC;
+                s2ctx->txpow = 16 * TXPOW_SCALE;
+                resetDC(s2ctx, 10);      // 10%
+                break;
+            }
             case J_US902: { // non-std obsolete naming
                 region = J_US915;
                 region_s = "US915";
