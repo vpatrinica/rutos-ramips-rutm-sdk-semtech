@@ -1,0 +1,13 @@
+{
+    "user": "uhttpd",
+    "access": {
+        "basicstation*": {
+            "methods": [
+                "config",
+                "status",
+                "log",
+                "upload"
+            ]
+        }
+    }
+}

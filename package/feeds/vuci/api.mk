@@ -5,7 +5,6 @@ APP_CATEGORY?=VuCI
 PKG_NAME?=$(APP_NAME)
 PKG_RELEASE?=1
 PKG_LICENSE?=Teltonika-nda-source
-PKG_BUILD_DEPENDS:=VUCI_MINIFY_LUA:luasrcdiet/host
 
 include $(INCLUDE_DIR)/package.mk
 include ../utils.mk
@@ -61,9 +60,9 @@ define Build/Prepare
 endef
 
 define Build/Compile
-	$(if $(CONFIG_VUCI_MINIFY_LUA),$(call MinifyLua,$(PKG_BUILD_DIR)/files),true);
-	$(if $(CONFIG_VUCI_COMPILE_LUA),$(call CompileLua,$(PKG_BUILD_DIR)/files),true);
-	$(if $(CONFIG_VUCI_MINIFY_JSON),$(call JsonMin,$(PKG_BUILD_DIR)/files),true);
+	# $(if $(CONFIG_VUCI_MINIFY_LUA),$(call MinifyLua,$(PKG_BUILD_DIR)/files),true);
+	# $(if $(CONFIG_VUCI_COMPILE_LUA),$(call CompileLua,$(PKG_BUILD_DIR)/files),true);
+	# $(if $(CONFIG_VUCI_MINIFY_JSON),$(call JsonMin,$(PKG_BUILD_DIR)/files),true);
 	# only called if pkg has .c files in ./src dir (or ./bin for GPL build) to compile
 	if [[ -d ./src && "$$$$(ls -A ./src)" ]] || [[ -d ./bin && "$$$$(ls -A ./bin)" ]]; then ( $(call Build/Compile/Default) ); fi
 endef

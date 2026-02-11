@@ -6,7 +6,7 @@
   "services/basicstation/general": {
     "title": "General Settings",
     "acls": [
-      "services/basicstation/general"
+      "services/basicstation"
     ],
     "view": "services/Basicstation",
     "index": 10,
@@ -15,7 +15,7 @@
   "services/basicstation/advanced": {
     "title": "Advanced Settings",
     "acls": [
-      "services/basicstation/advanced"
+      "services/basicstation"
     ],
     "view": "services/Basicstation",
     "tab": "advanced",
@@ -24,7 +24,7 @@
   "services/basicstation/log": {
     "title": "Log Messages",
     "acls": [
-      "services/basicstation/log"
+      "services/basicstation"
     ],
     "view": "services/Basicstation",
     "tab": "log",

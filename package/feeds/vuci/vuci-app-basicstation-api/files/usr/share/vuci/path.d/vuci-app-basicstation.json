@@ -1,5 +1,11 @@
 [
     {
-        "/basicstation/{service_group}/{sid}": "services/basicstation_api"
+        "/basicstation/{service_group}/{sid}": "services/basicstation"
+    },
+    {
+        "/basicstation/{service_group}": "services/basicstation"
+    },
+    {
+        "/basicstation": "services/basicstation"
     }
 ]

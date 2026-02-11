@@ -1,7 +1,7 @@
 <template>
   <a-tabs :default-active-key="activeTab" class="basicstation-tabs">
     <a-tab-pane key="general" :tab="$t('General Settings')">
-      <vuci-form config="basicstation">
+      <vuci-form service="basicstation">
         <!-- Station Identity -->
         <vuci-named-section
           name="station"
@@ -75,7 +75,7 @@
             <tlt-upload
               instant
               name="key"
-              action="/api/basicstation/services/basicstation/upload"
+              action="/api/basicstation/upload"
             />
           </tlt-form-model-item>
           <tlt-form-model-item
@@ -86,7 +86,7 @@
             <tlt-upload
               instant
               name="crt"
-              action="/api/basicstation/services/basicstation/upload"
+              action="/api/basicstation/upload"
             />
           </tlt-form-model-item>
           <!-- CA certificate for any TLS mode -->
@@ -98,7 +98,7 @@
             <tlt-upload
               instant
               name="trust"
-              action="/api/basicstation/services/basicstation/upload"
+              action="/api/basicstation/upload"
             />
           </tlt-form-model-item>
         </vuci-named-section>
@@ -184,7 +184,7 @@
     </a-tab-pane>
 
     <a-tab-pane key="advanced" :tab="$t('Advanced Settings')">
-      <vuci-form config="basicstation">
+      <vuci-form service="basicstation">
         <!-- RF Configuration -->
         <vuci-typed-section
           type="rfconf"
@@ -261,11 +261,20 @@
 
     <a-tab-pane key="log" :tab="$t('Log Messages')">
       <tlt-card :title="$t('Log Messages')">
-        <div class="log-container">
+        <template #title>
+           <span>{{ $t('Log Messages') }}</span>
+           <a-tag v-if="serviceRunning" color="green" style="margin-left: 10px">{{ $t('Running') }}</a-tag>
+           <a-tag v-else color="red" style="margin-left: 10px">{{ $t('Stopped') }}</a-tag>
+        </template>
+        <div class="log-container" ref="logContainer">
           <pre>{{ logContent }}</pre>
         </div>
         <template #extra>
-          <a-button type="primary" size="small" @click="fetchLogs">{{ $t('Refresh') }}</a-button>
+          <a-space>
+            <a-switch v-model="autoRefresh" :checked-children="$t('Auto-refresh ON')" :un-checked-children="$t('Auto-refresh OFF')" />
+            <a-button type="danger" size="small" icon="delete" @click="clearLogs">{{ $t('Clear') }}</a-button>
+            <a-button type="primary" size="small" icon="reload" @click="fetchLogs">{{ $t('Refresh') }}</a-button>
+          </a-space>
         </template>
       </tlt-card>
     </a-tab-pane>
@@ -327,29 +336,110 @@ export default {
         { name: "pwrIdx", label: this.$t("Power Index") },
         { name: "usedBy", label: this.$t("Used By") },
       ],
+      autoRefresh: false,
+      refreshTimer: null,
+      serviceRunning: false,
     };
   },
   async created() {
+    await this.logAllUci();
     await this.loadUciOptions();
     await this.fetchLogs();
+    await this.fetchStatus();
+  },
+  destroyed() {
+    this.stopRefresh();
+  },
+  watch: {
+    autoRefresh(val) {
+      if (val) {
+        this.startRefresh();
+      } else {
+        this.stopRefresh();
+      }
+    }
   },
   methods: {
     async loadUciOptions() {
-      await this.$uci.load("basicstation");
-      this.rfConfOptions = this.$uci.sections("basicstation", "rfconf").map(s => [s['.name'], s['.name']]);
-      this.rssiTcompOptions = this.$uci.sections("basicstation", "rssitcomp").map(s => [s['.name'], s['.name']]);
-    },
-    async fetchLogs() {
-      this.$spin();
       try {
-        const response = await this.$axios.get("/api/basicstation/services/basicstation/log");
-        this.logContent = response.log;
+        const rfconfRes = await this.$axios.get("/api/basicstation/config/rfconf");
+        console.log("--- BASICSTATION RFCONF OPTIONS ---");
+        console.log(JSON.stringify(rfconfRes, null, 2));
+        if (rfconfRes && Array.isArray(rfconfRes)) {
+          this.rfConfOptions = rfconfRes.map(s => [s['.name'], s['.name']]);
+        }
+        const rssitcompRes = await this.$axios.get("/api/basicstation/config/rssitcomp");
+        console.log("--- BASICSTATION RSSITCOMP OPTIONS ---");
+        console.log(JSON.stringify(rssitcompRes, null, 2));
+        if (rssitcompRes && Array.isArray(rssitcompRes)) {
+          this.rssiTcompOptions = rssitcompRes.map(s => [s['.name'], s['.name']]);
+        }
       } catch (e) {
-        this.$message.error(this.$t("Failed to fetch logs"));
-      } finally {
-        this.$spin(false);
+        console.error("Failed to load options from API", e);
       }
     },
+    async fetchLogs(silent = false) {
+      if (!silent) this.$spin();
+      try {
+        const response = await this.$axios.get("/api/basicstation/log");
+        this.logContent = response.log;
+        this.$nextTick(() => {
+          this.scrollToBottom();
+        });
+        if (silent) await this.fetchStatus();
+      } catch (e) {
+        if (!silent) this.$message.error(this.$t("Failed to fetch logs"));
+      } finally {
+        if (!silent) this.$spin(false);
+      }
+    },
+    async clearLogs() {
+      try {
+        await this.$axios.delete("/api/basicstation/log");
+        this.logContent = "";
+        this.$message.success(this.$t("Logs cleared"));
+      } catch (e) {
+        this.$message.error(this.$t("Failed to clear logs"));
+      }
+    },
+    async fetchStatus() {
+      try {
+        const response = await this.$axios.get("/api/basicstation/status");
+        console.log("--- BASICSTATION STATUS ---");
+        console.log(JSON.stringify(response, null, 2));
+        this.serviceRunning = response.running;
+      } catch (e) {
+        // Ignore status fetch errors
+      }
+    },
+    startRefresh() {
+      this.stopRefresh();
+      this.refreshTimer = setInterval(() => {
+        this.fetchLogs(true);
+      }, 3000);
+    },
+    stopRefresh() {
+      if (this.refreshTimer) {
+        clearInterval(this.refreshTimer);
+        this.refreshTimer = null;
+      }
+    },
+    async logAllUci() {
+      try {
+        const config = await this.$axios.get("/api/basicstation/config");
+        console.log("--- START BASICSTATION UCI DATA ---");
+        console.log(JSON.stringify(config, null, 2));
+        console.log("--- END BASICSTATION UCI DATA ---");
+      } catch (e) {
+        console.error("Failed to fetch all UCI data for logging", e);
+      }
+    },
+    scrollToBottom() {
+      const container = this.$refs.logContainer;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
   },
 };
 </script>
