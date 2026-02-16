@@ -1,11 +1,14 @@
 <template>
   <a-tabs :default-active-key="activeTab" class="basicstation-tabs">
     <a-tab-pane key="general" :tab="$t('General Settings')">
-      <vuci-form service="basicstation">
+      <vuci-form config="basicstation" v-slot="{ uciData }">
         <!-- Station Identity -->
         <vuci-named-section
           name="station"
           :title="$t('Station Identity')"
+          :endpoints="[{endpoint: 'basicstation/config'}]"
+          data-key="basicstation"
+          :uci-data="uciData"
           v-slot="{ s }"
         >
           <vuci-form-item-input
@@ -29,6 +32,9 @@
         <vuci-named-section
           name="auth"
           :title="$t('Authentication')"
+          :endpoints="[{endpoint: 'basicstation/config'}]"
+          data-key="basicstation"
+          :uci-data="uciData"
           v-slot="{ s }"
         >
           <vuci-form-item-select
@@ -107,6 +113,9 @@
         <vuci-named-section
           name="sx130x"
           :title="$t('Radio Configuration')"
+          :endpoints="[{endpoint: 'basicstation/config'}]"
+          data-key="basicstation"
+          :uci-data="uciData"
           v-slot="{ s }"
         >
           <vuci-form-item-select
@@ -159,6 +168,9 @@
         <vuci-named-section
           name="station"
           :title="$t('Logging')"
+          :endpoints="[{endpoint: 'basicstation/config'}]"
+          data-key="basicstation"
+          :uci-data="uciData"
           v-slot="{ s }"
         >
           <vuci-form-item-select
@@ -170,13 +182,13 @@
           <vuci-form-item-input
             :uci-section="s"
             :label="$t('Size (MB)')"
-            name="logSize"
+            name="log_size"
             rules="range(1,10)"
           />
           <vuci-form-item-input
             :uci-section="s"
             :label="$t('Rotate')"
-            name="logRotate"
+            name="log_rotate"
             rules="range(1,10)"
           />
         </vuci-named-section>
@@ -184,12 +196,15 @@
     </a-tab-pane>
 
     <a-tab-pane key="advanced" :tab="$t('Advanced Settings')">
-      <vuci-form service="basicstation">
+      <vuci-form config="basicstation" v-slot="{ uciData }">
         <!-- RF Configuration -->
         <vuci-typed-section
           type="rfconf"
           :title="$t('RF Configuration')"
           :columns="rfConfColumns"
+          :endpoints="[{endpoint: 'basicstation/config'}]"
+          data-key="basicstation"
+          :uci-data="uciData"
           addremove
         >
           <template #type="{ s }">
@@ -217,6 +232,9 @@
           type="rssitcomp"
           :title="$t('RSSI Tcomp')"
           :columns="rssiTcompColumns"
+          :endpoints="[{endpoint: 'basicstation/config'}]"
+          data-key="basicstation"
+          :uci-data="uciData"
           addremove
         >
           <template #coeff_a="{ s }">
@@ -241,6 +259,9 @@
           type="txlut"
           :title="$t('TX Gain Lookup Table')"
           :columns="txLutColumns"
+          :endpoints="[{endpoint: 'basicstation/config'}]"
+          data-key="basicstation"
+          :uci-data="uciData"
           addremove
         >
           <template #rfPower="{ s }">
@@ -365,21 +386,23 @@ export default {
         const rfconfRes = await this.$axios.get("/api/basicstation/config/rfconf");
         console.log("--- BASICSTATION RFCONF OPTIONS ---");
         console.log(JSON.stringify(rfconfRes, null, 2));
-        if (rfconfRes && Array.isArray(rfconfRes)) {
-          this.rfConfOptions = rfconfRes.map(s => [s['.name'], s['.name']]);
+        const rfconfData = rfconfRes.data || rfconfRes;
+        if (Array.isArray(rfconfData)) {
+          this.rfConfOptions = rfconfData.map(s => [s['.name'], s['.name']]);
         }
         const rssitcompRes = await this.$axios.get("/api/basicstation/config/rssitcomp");
         console.log("--- BASICSTATION RSSITCOMP OPTIONS ---");
         console.log(JSON.stringify(rssitcompRes, null, 2));
-        if (rssitcompRes && Array.isArray(rssitcompRes)) {
-          this.rssiTcompOptions = rssitcompRes.map(s => [s['.name'], s['.name']]);
+        const rssitcompData = rssitcompRes.data || rssitcompRes;
+        if (Array.isArray(rssitcompData)) {
+          this.rssiTcompOptions = rssitcompData.map(s => [s['.name'], s['.name']]);
         }
       } catch (e) {
         console.error("Failed to load options from API", e);
       }
     },
     async fetchLogs(silent = false) {
-      if (!silent) this.$spin();
+      if (!silent && this.$spin) this.$spin();
       try {
         const response = await this.$axios.get("/api/basicstation/log");
         this.logContent = response.log;
@@ -390,7 +413,7 @@ export default {
       } catch (e) {
         if (!silent) this.$message.error(this.$t("Failed to fetch logs"));
       } finally {
-        if (!silent) this.$spin(false);
+        if (!silent && this.$spin) this.$spin(false);
       }
     },
     async clearLogs() {

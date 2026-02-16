@@ -136,9 +136,7 @@ define Build/Configure
 
 	$(if $(strip $(foreach opt,$(MBEDTLS_BUILD_OPTS),$($(opt)))),\
 		$(foreach opt,$(MBEDTLS_BUILD_OPTS),\
-			$(PKG_BUILD_DIR)/scripts/config.py \
-			-f $(PKG_BUILD_DIR)/include/mbedtls/mbedtls_config.h \
-			$(if $($(opt)),set,unset) $(patsubst CONFIG_%,%,$(opt))),)
+			$(PKG_BUILD_DIR)/scripts/config.py -f $(PKG_BUILD_DIR)/include/mbedtls/mbedtls_config.h $(if $($(opt)),set,unset) $(patsubst CONFIG_%,%,$(opt));),)
 endef
 
 define Build/InstallDev

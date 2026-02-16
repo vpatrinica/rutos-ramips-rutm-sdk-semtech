@@ -215,7 +215,7 @@ parse_auth() {
 			[ -f "$buffer" ] && cp "$buffer" /tmp/basicstation/"$cred".crt
 		elif [ "$mode" = 'serverAndClientToken' ]; then
 			config_get buffer "$section" token
-			echo "$buffer" > /tmp/basicstation/"$cred".key
+			printf "Authorization: Bearer %s\n" "$buffer" > /tmp/basicstation/"$cred".key
 		fi
 		if [ "$cred" = "tc" ]; then
 			uri="wss://${addr}:${port}"
@@ -230,7 +230,7 @@ parse_auth() {
 		fi
 	fi
 
-	echo "$uri" > /tmp/basicstation/"$cred".uri
+	printf "$uri" > /tmp/basicstation/"$cred".uri
 }
 
 process_config() {
@@ -259,6 +259,9 @@ start_service() {
 	procd_append_param command --home /tmp/basicstation/
 	procd_append_param command --force
 	procd_set_param respawn
+	procd_set_param stderr 1
+	procd_set_param stdout 1
+	procd_set_param file /tmp/basicstation/log
 	procd_close_instance
 }
 
