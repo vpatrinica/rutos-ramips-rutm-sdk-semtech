@@ -43,11 +43,11 @@ opkg remove --force-depends vuci-app-basicstation-ui
 opkg remove --force-depends sx1302_hal-utils
 opkg remove --force-depends libmbedtls21
 
-opkg install libmbedtls21_*.ipk
-opkg install sx1302_hal-utils_*.ipk
-opkg install lora-basicstation_*.ipk
-opkg install vuci-app-basicstation-api_*.ipk
-opkg install vuci-app-basicstation-ui_*.ipk
+opkg install --force-maintainer libmbedtls21_*.ipk
+opkg install --force-maintainer sx1302_hal-utils_*.ipk
+opkg install --force-maintainer lora-basicstation_*.ipk
+opkg install --force-maintainer vuci-app-basicstation-api_*.ipk
+opkg install --force-maintainer vuci-app-basicstation-ui_*.ipk
 
 echo "Installation complete!"
 EOF
@@ -58,11 +58,11 @@ tar -czf "${BUNDLE_TAR}" -C "." "${BUNDLE_DIR}"
 
 # 2. Transfer to Device
 echo "Transferring bundle to ${REMOTE_USER}@${REMOTE_HOST}..."
-scp "${BUNDLE_TAR}" "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
+sshpass -e scp -o StrictHostKeyChecking=no "${BUNDLE_TAR}" "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
 
 # 3. Remote Install
 echo "Executing remote installation..."
-ssh "${REMOTE_USER}@${REMOTE_HOST}" << EOF
+sshpass -e ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" << EOF
     mkdir -p ${REMOTE_DIR}
     tar -xzf /tmp/${BUNDLE_TAR} -C /tmp/
     cd ${REMOTE_DIR}

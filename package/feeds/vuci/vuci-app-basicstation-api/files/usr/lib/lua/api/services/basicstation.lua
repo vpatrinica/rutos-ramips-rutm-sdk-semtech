@@ -47,6 +47,7 @@ end
 -- GET_TYPE_config: handles /api/basicstation/config[/:sid]
 -- NOTE: BasicService dispatches via GET_TYPE_%s pattern (not GET_%s)
 function BasicStation:GET_TYPE_config(sid)
+    if type(sid) == "table" then sid = sid.sid end
     log("GET_TYPE_config: " .. tostring(sid or "all"))
     if not sid or sid == "" then
         return self:ResponseOK(self:get_all_config())

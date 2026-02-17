@@ -6,8 +6,6 @@
         <vuci-named-section
           name="station"
           :title="$t('Station Identity')"
-          :endpoints="[{endpoint: 'basicstation/config'}]"
-          data-key="basicstation"
           :uci-data="uciData"
           v-slot="{ s }"
         >
@@ -32,8 +30,6 @@
         <vuci-named-section
           name="auth"
           :title="$t('Authentication')"
-          :endpoints="[{endpoint: 'basicstation/config'}]"
-          data-key="basicstation"
           :uci-data="uciData"
           v-slot="{ s }"
         >
@@ -113,8 +109,6 @@
         <vuci-named-section
           name="sx130x"
           :title="$t('Radio Configuration')"
-          :endpoints="[{endpoint: 'basicstation/config'}]"
-          data-key="basicstation"
           :uci-data="uciData"
           v-slot="{ s }"
         >
@@ -168,8 +162,6 @@
         <vuci-named-section
           name="station"
           :title="$t('Logging')"
-          :endpoints="[{endpoint: 'basicstation/config'}]"
-          data-key="basicstation"
           :uci-data="uciData"
           v-slot="{ s }"
         >
@@ -202,8 +194,6 @@
           type="rfconf"
           :title="$t('RF Configuration')"
           :columns="rfConfColumns"
-          :endpoints="[{endpoint: 'basicstation/config'}]"
-          data-key="basicstation"
           :uci-data="uciData"
           addremove
         >
@@ -232,8 +222,6 @@
           type="rssitcomp"
           :title="$t('RSSI Tcomp')"
           :columns="rssiTcompColumns"
-          :endpoints="[{endpoint: 'basicstation/config'}]"
-          data-key="basicstation"
           :uci-data="uciData"
           addremove
         >
@@ -259,8 +247,6 @@
           type="txlut"
           :title="$t('TX Gain Lookup Table')"
           :columns="txLutColumns"
-          :endpoints="[{endpoint: 'basicstation/config'}]"
-          data-key="basicstation"
           :uci-data="uciData"
           addremove
         >

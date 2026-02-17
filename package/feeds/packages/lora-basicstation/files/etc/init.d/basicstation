@@ -258,7 +258,7 @@ start_service() {
 	# as the unprivileged uhttpd user) can read it.  The station binary
 	# opens the file with O_APPEND and will continue writing to it.
 	touch /tmp/basicstation/log
-	chmod 0644 /tmp/basicstation/log
+	chmod 0666 /tmp/basicstation/log
 
 	procd_open_instance
 	procd_set_param command /usr/local/usr/bin/station
