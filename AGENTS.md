@@ -291,8 +291,7 @@ make package/vuci-app-basicstation-ui/clean  && make package/vuci-app-basicstati
 make package/lora-basicstation/clean         && make package/lora-basicstation/compile V=s
 
 # Deploy all LoRaWAN packages to device (builds bundle, scps, installs)
-./host_deploy.sh [DEVICE_IP] [USER]
-# Defaults: IP=100.109.82.127, USER=root, password=AVPteltonika123$
+# Defaults from environment (.env)
 ```
 
 The deploy script (`host_deploy.sh`) searches `bin/packages/` for IPKs matching
@@ -465,8 +464,7 @@ are not part of the current LoRaWAN bundle.
 
 ### Device Access
 
-- Default IP: `100.109.82.127` (Tailscale)
-- Credentials: `root` / `AVPteltonika123$`
-- SSH: `ssh root@100.109.82.127`
-- VUCI web UI: `https://100.109.82.127` (self-signed cert)
+- Access details are managed via the `.env` file.
+- SSH: `ssh root@[DEVICE_IP]`
+- VUCI web UI: `https://[DEVICE_IP]` (self-signed cert)
 - BasicStation page: Services > LoRaWAN BasicStation

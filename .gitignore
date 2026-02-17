@@ -6,3 +6,9 @@
 /logs/
 /dl/
 .env
+
+package/feeds/vuci/*/node_modules/*
+node_modules
+node_modules/*
+.bin/*
+

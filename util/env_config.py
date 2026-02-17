@@ -18,6 +18,8 @@ _DEFAULTS = {
     "DEVICE_IP": "192.168.1.1",
     "DEVICE_USER": "root",
     "DEVICE_PASS": "",
+    "LNS_TOKEN": "",
+    "STATION_ID": "",
 }
 
 
@@ -44,5 +46,7 @@ _load_env()
 DEVICE_IP = os.environ.get("DEVICE_IP", _DEFAULTS["DEVICE_IP"])
 DEVICE_USER = os.environ.get("DEVICE_USER", _DEFAULTS["DEVICE_USER"])
 DEVICE_PASS = os.environ.get("DEVICE_PASS", _DEFAULTS["DEVICE_PASS"])
+LNS_TOKEN = os.environ.get("LNS_TOKEN", _DEFAULTS["LNS_TOKEN"])
+STATION_ID = os.environ.get("STATION_ID", _DEFAULTS["STATION_ID"])
 
 SSH_OPTS = ["-o", "StrictHostKeyChecking=no"]

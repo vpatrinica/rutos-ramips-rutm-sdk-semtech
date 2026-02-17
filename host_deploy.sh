@@ -58,6 +58,7 @@ tar -czf "${BUNDLE_TAR}" -C "." "${BUNDLE_DIR}"
 
 # 2. Transfer to Device
 echo "Transferring bundle to ${REMOTE_USER}@${REMOTE_HOST}..."
+export SSHPASS="${DEVICE_PASS}"
 sshpass -e scp -o StrictHostKeyChecking=no "${BUNDLE_TAR}" "${REMOTE_USER}@${REMOTE_HOST}:/tmp/"
 
 # 3. Remote Install
