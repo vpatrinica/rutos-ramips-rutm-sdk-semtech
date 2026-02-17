@@ -39,6 +39,7 @@ endef
 define Package/lora-basicstation/conffiles
 /etc/config/basicstation
 /etc/config/tc.trust
+/etc/config/gps
 endef
 
 define Build/Prepare
@@ -53,10 +54,13 @@ define Package/lora-basicstation/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/station $(1)/usr/bin
 	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_CONF) ./files/etc/config/basicstation $(1)/etc/config/basicstation
+	install -m0666 ./files/etc/config/basicstation $(1)/etc/config/basicstation
 	$(INSTALL_CONF) ./files/etc/config/tc.trust $(1)/etc/config/tc.trust
+	$(INSTALL_CONF) ./files/etc/config/gps $(1)/etc/config/gps
+	$(INSTALL_DIR) $(1)/etc/basicstation
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/etc/init.d/basicstation $(1)/etc/init.d/basicstation
+	$(INSTALL_BIN) ./files/etc/init.d/gps_bridge $(1)/etc/init.d/gps_bridge
 endef
 
 $(eval $(call BuildPackage,lora-basicstation))

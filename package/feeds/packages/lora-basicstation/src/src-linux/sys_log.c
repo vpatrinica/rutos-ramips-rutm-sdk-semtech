@@ -154,7 +154,7 @@ static void writeLogData (const char *data, int len) {
                 fprintf(stderr,"Failed to unlink log file %s: %s\n", logfile->path, strerror(errno));
         }
     }
-    int fd = open(logfile->path, O_CREAT|O_APPEND|O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP);
+    int fd = open(logfile->path, O_CREAT|O_APPEND|O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
     if( fd == -1 ) {
         fprintf(stderr,"Failed to open log file %s: %s\n", logfile->path, strerror(errno));
         goto log2stderr;

@@ -170,15 +170,15 @@ parse_station() {
 
 	json_add_string 'euiprefix' "::1"
 	json_add_string 'routerid' "$stationid"
-	config_get buffer "$section" radioInit "$DEFAULT_RADIO_INIT"
+	config_get buffer "$section" radio_init "$DEFAULT_RADIO_INIT"
 	json_add_string 'radio_init' "$buffer"
-	config_get buffer "$section" logFile "$DEFAULT_LOG_FILE"
+	config_get buffer "$section" log_file "$DEFAULT_LOG_FILE"
 	json_add_string 'log_file' "$buffer"
-	config_get buffer "$section" logLevel "$DEFAULT_LOG_LEVEL"
+	config_get buffer "$section" log_level "$DEFAULT_LOG_LEVEL"
 	json_add_string 'log_level' "$buffer"
-	config_get buffer "$section" logSize "$DEFAULT_LOG_SIZE"
+	config_get buffer "$section" log_size "$DEFAULT_LOG_SIZE"
 	json_add_int 'log_size' $(( 1000000*buffer ))
-	config_get buffer "$section" logRotate "$DEFAULT_LOG_ROTATE"
+	config_get buffer "$section" log_rotate "$DEFAULT_LOG_ROTATE"
 	json_add_int 'log_rotate' "$buffer"
 
 	config_get buffer "$section" pps
@@ -253,6 +253,12 @@ start_service() {
 	mkdir -p /tmp/basicstation/
 
 	process_config
+
+	# Pre-create the log file as world-readable so the VUCI API (running
+	# as the unprivileged uhttpd user) can read it.  The station binary
+	# opens the file with O_APPEND and will continue writing to it.
+	touch /tmp/basicstation/log
+	chmod 0644 /tmp/basicstation/log
 
 	procd_open_instance
 	procd_set_param command /usr/local/usr/bin/station

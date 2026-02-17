@@ -4,12 +4,21 @@ local uci = require("vuci.uci")
 
 local BasicStation = BasicService:new("basicstation")
 
+-- Allow file uploads: skip the service_group validation that rejects
+-- paths not in service_groups_enum (which only has "config" and "actions").
+BasicStation.disable_upload_service_group_check = true
+
+function BasicStation:UPLOAD_validate_path()
+    -- Accept any upload path; UPLOAD_init handles validation
+    return true
+end
+
 local function log(msg)
     if msg:sub(1,1) == "-" then msg = " " .. msg end
     os.execute(string.format("logger -t BASICSTATION '%s'", msg:gsub("'", "'\\''")))
 end
 
-log("BASICSTATION REFACTORED SERVICE LOADED v5")
+log("BASICSTATION SERVICE LOADED v8")
 
 -- Helper: Get all UCI configuration as an array of sections
 function BasicStation:get_all_config()
@@ -69,27 +78,25 @@ end
 function BasicStation:GET_TYPE_log()
     log("GET_TYPE_log called")
     local log_path = "/tmp/basicstation/log"
-    if not fs.access(log_path) then
-        return self:ResponseOK({ log = "" })
-    end
+    local content = ""
 
     local f = io.open(log_path, "r")
-    local content = ""
     if f then
-        content = f:read("*all")
+        content = f:read("*all") or ""
         f:close()
     end
 
     return self:ResponseOK({ log = content })
 end
 
--- DELETE_TYPE_log: handles DELETE /api/basicstation/log
-function BasicStation:DELETE_TYPE_log()
+-- GET_TYPE_clear_log: handles GET /api/basicstation/clear_log
+-- Clears the BasicStation log file. Uses GET because BasicService only
+-- dispatches GET_TYPE_%s (not DELETE_TYPE_%s or POST_TYPE_%s for config).
+function BasicStation:GET_TYPE_clear_log()
+    log("GET_TYPE_clear_log called")
     local log_path = "/tmp/basicstation/log"
-    if fs.access(log_path) then
-        os.execute("truncate -s 0 " .. log_path)
-    end
-    return self:ResponseOK()
+    os.execute(": > " .. log_path .. " 2>/dev/null")
+    return self:ResponseOK({ cleared = true })
 end
 
 -- GET_TYPE_status: handles /api/basicstation/status
@@ -99,49 +106,21 @@ function BasicStation:GET_TYPE_status()
     return self:ResponseOK({ running = running })
 end
 
--- POST_TYPE_config: handles POST /api/basicstation/config[/:sid]
-function BasicStation:POST_TYPE_config(sid, query, body)
-    log("POST_TYPE_config: " .. tostring(sid or "new"))
-    local cursor = uci.cursor()
-
-    if not sid or sid == "" then
-        if type(body) ~= "table" then return self:ResponseBadRequest("Invalid body") end
-        local stype = body[".type"] or body["type"]
-        local sname = body[".name"] or body["name"]
-        if stype then
-            sname = cursor:add("basicstation", stype)
-            for k, v in pairs(body) do
-                if k:sub(1,1) ~= "." and k ~= "id" and k ~= "type" then
-                    cursor:set("basicstation", sname, k, v)
-                end
-            end
-            cursor:commit("basicstation")
-            return self:ResponseOK({ [".name"] = sname })
-        end
-        return self:ResponseBadRequest("Missing section type")
-    end
-
-    if type(body) ~= "table" then return self:ResponseBadRequest("Invalid body") end
-    for k, v in pairs(body) do
-        if k:sub(1,1) ~= "." and k ~= "id" then
-            cursor:set("basicstation", sid, k, v)
-        end
-    end
-    cursor:commit("basicstation")
-    return self:ResponseOK()
-end
-
--- DELETE_TYPE_config: handles DELETE /api/basicstation/config/:sid
-function BasicStation:DELETE_TYPE_config(sid)
-    log("DELETE_TYPE_config: " .. tostring(sid or "nil"))
-    if not sid or sid == "" then return self:ResponseBadRequest("Missing SID") end
-    local cursor = uci.cursor()
-    cursor:delete("basicstation", sid)
-    cursor:commit("basicstation")
-    return self:ResponseOK()
-end
+-- NOTE: POST/PUT/DELETE for config sections are handled by the VUCI
+-- framework's standard UCI API (/api/uci), not by custom endpoints here.
+-- BasicService only dispatches GET_TYPE_%s for GET requests and POST_action
+-- for POST requests (action-based pattern).  Config CRUD goes through
+-- vuci-form / vuci-named-section components in the frontend.
 
 -- UPLOAD support
+--
+-- The tlt-upload Vue component sends multipart/form-data with two fields:
+--   "option" = the name prop value (e.g., "key", "crt", "trust")
+--   "file"   = the actual file content
+-- The formdata_parser only recognizes fields named "file" as file uploads;
+-- all other fields go into upload_request.parameters.
+-- So cert_type comes from upload_request.parameters.option, NOT from
+-- file.content_disposition.name (which is stripped by the framework).
 function BasicStation:UPLOAD_init()
     local CERT_FILES = {
         trust = { path = "/etc/basicstation/tc.trust" },
@@ -155,15 +134,44 @@ function BasicStation:UPLOAD_init()
         end
 
         if not fs.access("/etc/basicstation") then
-            os.execute("mkdir -p /etc/basicstation")
+            os.execute("mkdir -p /etc/basicstation && chmod 755 /etc/basicstation")
         end
 
         local file = upload_request.files[1]
-        local cert_type = file.fieldname or "trust"
-        local cert_info = CERT_FILES[cert_type]
 
+        -- tlt-upload sends the name prop as parameters.option
+        local cert_type = upload_request.parameters
+            and upload_request.parameters.option
+
+        -- Fallback: try cert_type parameter (for curl/manual testing)
+        if not cert_type and upload_request.parameters then
+            cert_type = upload_request.parameters.cert_type
+        end
+
+        -- Final fallback: infer from filename
+        if not cert_type then
+            local fname = (file.filename or ""):lower()
+            if fname:match("key") then
+                cert_type = "key"
+            elseif fname:match("crt") then
+                cert_type = "crt"
+            else
+                cert_type = "trust"
+            end
+        end
+
+        local cert_info = CERT_FILES[cert_type]
         if not cert_info then
-            return false, { code = 5, error = "Invalid certificate type" }
+            return false, { code = 5, error = "Invalid certificate type: " .. tostring(cert_type) }
+        end
+
+        -- Remove existing target file before the framework moves the new one.
+        -- The framework uses nixio.fs.move() which on cross-device moves (tmpfs→overlay)
+        -- fails with EACCES if the target file exists and is owned by root, because
+        -- uhttpd cannot overwrite it. Removing first lets the move create a fresh file
+        -- in the world-writable directory, which uhttpd can do.
+        if fs.access(cert_info.path) then
+            fs.remove(cert_info.path)
         end
 
         file.location = cert_info.path
@@ -182,10 +190,11 @@ function BasicStation:UPLOAD_after_upload_hook(upload_request)
     cursor:set("basicstation", "auth", cert_type, file.location)
     cursor:commit("basicstation")
 
+    -- chmod via os.execute since nixio.fs.chmod may run as uhttpd user
     if cert_type == "key" then
-        os.execute("chmod 600 " .. file.location)
+        os.execute("chmod 0600 " .. file.location)
     else
-        os.execute("chmod 644 " .. file.location)
+        os.execute("chmod 0644 " .. file.location)
     end
 
     return { path = file.location, type = cert_type }

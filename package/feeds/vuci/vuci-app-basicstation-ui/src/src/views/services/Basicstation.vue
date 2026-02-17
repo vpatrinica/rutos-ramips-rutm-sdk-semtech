@@ -176,7 +176,7 @@
           <vuci-form-item-select
             :uci-section="s"
             :label="$t('Level')"
-            name="logLevel"
+            name="log_level"
             :options="logLevelOptions"
           />
           <vuci-form-item-input
@@ -220,7 +220,7 @@
             <vuci-form-item-input :uci-section="s" name="antennaGain" rules="uinteger" />
           </template>
           <template #rssiOffset="{ s }">
-            <vuci-form-item-input :uci-section="s" name="rssiOffset" rules="float" />
+            <vuci-form-item-input :uci-section="s" name="rssiOffset" />
           </template>
           <template #useRssiTcomp="{ s }">
             <vuci-form-item-select :uci-section="s" name="useRssiTcomp" :options="rssiTcompOptions" />
@@ -238,19 +238,19 @@
           addremove
         >
           <template #coeff_a="{ s }">
-            <vuci-form-item-input :uci-section="s" name="coeff_a" rules="float" />
+            <vuci-form-item-input :uci-section="s" name="coeff_a" />
           </template>
           <template #coeff_b="{ s }">
-            <vuci-form-item-input :uci-section="s" name="coeff_b" rules="float" />
+            <vuci-form-item-input :uci-section="s" name="coeff_b" />
           </template>
           <template #coeff_c="{ s }">
-            <vuci-form-item-input :uci-section="s" name="coeff_c" rules="float" />
+            <vuci-form-item-input :uci-section="s" name="coeff_c" />
           </template>
           <template #coeff_d="{ s }">
-            <vuci-form-item-input :uci-section="s" name="coeff_d" rules="float" />
+            <vuci-form-item-input :uci-section="s" name="coeff_d" />
           </template>
           <template #coeff_e="{ s }">
-            <vuci-form-item-input :uci-section="s" name="coeff_e" rules="float" />
+            <vuci-form-item-input :uci-section="s" name="coeff_e" />
           </template>
         </vuci-typed-section>
 
@@ -383,14 +383,14 @@ export default {
   methods: {
     async loadUciOptions() {
       try {
-        const rfconfRes = await this.$axios.get("/api/basicstation/config/rfconf");
+        const rfconfRes = await this.$axios.get("/api/basicstation/rfconf");
         console.log("--- BASICSTATION RFCONF OPTIONS ---");
         console.log(JSON.stringify(rfconfRes, null, 2));
         const rfconfData = rfconfRes.data || rfconfRes;
         if (Array.isArray(rfconfData)) {
           this.rfConfOptions = rfconfData.map(s => [s['.name'], s['.name']]);
         }
-        const rssitcompRes = await this.$axios.get("/api/basicstation/config/rssitcomp");
+        const rssitcompRes = await this.$axios.get("/api/basicstation/rssitcomp");
         console.log("--- BASICSTATION RSSITCOMP OPTIONS ---");
         console.log(JSON.stringify(rssitcompRes, null, 2));
         const rssitcompData = rssitcompRes.data || rssitcompRes;
@@ -405,7 +405,8 @@ export default {
       if (!silent && this.$spin) this.$spin();
       try {
         const response = await this.$axios.get("/api/basicstation/log");
-        this.logContent = response.log;
+        const body = response.data || response;
+        this.logContent = body.log || "";
         this.$nextTick(() => {
           this.scrollToBottom();
         });
@@ -418,7 +419,7 @@ export default {
     },
     async clearLogs() {
       try {
-        await this.$axios.delete("/api/basicstation/log");
+        await this.$axios.get("/api/basicstation/clear_log");
         this.logContent = "";
         this.$message.success(this.$t("Logs cleared"));
       } catch (e) {
@@ -430,7 +431,8 @@ export default {
         const response = await this.$axios.get("/api/basicstation/status");
         console.log("--- BASICSTATION STATUS ---");
         console.log(JSON.stringify(response, null, 2));
-        this.serviceRunning = response.running;
+        const body = response.data || response;
+        this.serviceRunning = !!body.running;
       } catch (e) {
         // Ignore status fetch errors
       }

@@ -3,8 +3,16 @@
 # AVP Host Deployment Script
 # Usage: ./host_deploy.sh [REMOTE_IP] [USER]
 
-REMOTE_HOST="${1:-100.109.82.127}"
-REMOTE_USER="${2:-root}"
+# Load .env if present
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "${SCRIPT_DIR}/.env" ]; then
+    set -a
+    . "${SCRIPT_DIR}/.env"
+    set +a
+fi
+
+REMOTE_HOST="${1:-${DEVICE_IP:-192.168.1.1}}"
+REMOTE_USER="${2:-${DEVICE_USER:-root}}"
 BUNDLE_DIR="avp_bundle"
 BUNDLE_TAR="avp_bundle.tar.gz"
 REMOTE_DIR="/tmp/avp_bundle"
