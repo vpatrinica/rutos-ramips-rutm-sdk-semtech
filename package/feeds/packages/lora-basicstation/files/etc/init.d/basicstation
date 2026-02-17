@@ -161,7 +161,8 @@ parse_station() {
 		config_get buffer "$section" idGenIf "$DEFAULT_ID_GEN_IF"
 		mac=$(head -n 1 /sys/class/net/"$buffer"/address 2>/dev/null)
 		if [ -n "$mac" ]; then
-			uci_set basicstation "$section" stationid "${mac::8}:ff:fe:${mac:9:8}"
+			stationid="${mac::8}:ff:fe:${mac:9:8}"
+			uci_set basicstation "$section" stationid "$stationid"
 			uci_commit basicstation
 		fi
 	fi
@@ -258,7 +259,7 @@ start_service() {
 	# as the unprivileged uhttpd user) can read it.  The station binary
 	# opens the file with O_APPEND and will continue writing to it.
 	touch /tmp/basicstation/log
-	chmod 0666 /tmp/basicstation/log
+	chmod 0644 /tmp/basicstation/log
 
 	procd_open_instance
 	procd_set_param command /usr/local/usr/bin/station

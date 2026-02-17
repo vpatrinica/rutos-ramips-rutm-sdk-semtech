@@ -18,7 +18,7 @@ local function log(msg)
     os.execute(string.format("logger -t BASICSTATION '%s'", msg:gsub("'", "'\\''")))
 end
 
-log("BASICSTATION SERVICE LOADED v8")
+log("BASICSTATION SERVICE LOADED v12")
 
 -- Helper: Get all UCI configuration as an array of sections
 function BasicStation:get_all_config()
@@ -63,6 +63,47 @@ function BasicStation:GET_TYPE_config(sid)
     return self:ResponseOK(section)
 end
 
+-- PUT_TYPE_config: handles PUT /api/basicstation/config/:sid
+-- This is what vuci-form uses when saving a named section
+function BasicStation:PUT_TYPE_config(sid, data)
+    log("PUT_TYPE_config sid=" .. tostring(sid))
+    return self:POST_TYPE_config(sid, data)
+end
+
+-- POST_TYPE_config: handles POST updates (fallback)
+function BasicStation:POST_TYPE_config(sid, data)
+    log("POST_TYPE_config sid=" .. tostring(sid))
+    if not sid or not data then
+        return { error = "Missing section ID or data" }
+    end
+
+    local u = uci.cursor()
+    
+    -- Check existence
+    local exists = u:get_all(self.config, sid)
+    if not exists then
+        log("Section " .. sid .. " not found")
+        return { error = "Section not found: " .. sid }
+    end
+
+    -- Update section values
+    for k, v in pairs(data) do
+        -- Skip metadata keys
+        if k:sub(1, 1) ~= "." and k ~= "id" then
+            log("Setting " .. k .. "=" .. tostring(v))
+            u:set(self.config, sid, k, v)
+        end
+    end
+
+    if u:commit(self.config) then
+        log("Commit successful")
+        return { success = true }
+    end
+
+    log("Commit failed")
+    return { error = "Failed to commit UCI changes" }
+end
+
 -- GET_TYPE_rfconf: handles /api/basicstation/config/rfconf
 function BasicStation:GET_TYPE_rfconf()
     log("GET_TYPE_rfconf")
@@ -91,8 +132,6 @@ function BasicStation:GET_TYPE_log()
 end
 
 -- GET_TYPE_clear_log: handles GET /api/basicstation/clear_log
--- Clears the BasicStation log file. Uses GET because BasicService only
--- dispatches GET_TYPE_%s (not DELETE_TYPE_%s or POST_TYPE_%s for config).
 function BasicStation:GET_TYPE_clear_log()
     log("GET_TYPE_clear_log called")
     local log_path = "/tmp/basicstation/log"
@@ -107,21 +146,7 @@ function BasicStation:GET_TYPE_status()
     return self:ResponseOK({ running = running })
 end
 
--- NOTE: POST/PUT/DELETE for config sections are handled by the VUCI
--- framework's standard UCI API (/api/uci), not by custom endpoints here.
--- BasicService only dispatches GET_TYPE_%s for GET requests and POST_action
--- for POST requests (action-based pattern).  Config CRUD goes through
--- vuci-form / vuci-named-section components in the frontend.
-
 -- UPLOAD support
---
--- The tlt-upload Vue component sends multipart/form-data with two fields:
---   "option" = the name prop value (e.g., "key", "crt", "trust")
---   "file"   = the actual file content
--- The formdata_parser only recognizes fields named "file" as file uploads;
--- all other fields go into upload_request.parameters.
--- So cert_type comes from upload_request.parameters.option, NOT from
--- file.content_disposition.name (which is stripped by the framework).
 function BasicStation:UPLOAD_init()
     local CERT_FILES = {
         trust = { path = "/etc/basicstation/tc.trust" },
@@ -139,26 +164,17 @@ function BasicStation:UPLOAD_init()
         end
 
         local file = upload_request.files[1]
+        local cert_type = upload_request.parameters and upload_request.parameters.option
 
-        -- tlt-upload sends the name prop as parameters.option
-        local cert_type = upload_request.parameters
-            and upload_request.parameters.option
-
-        -- Fallback: try cert_type parameter (for curl/manual testing)
         if not cert_type and upload_request.parameters then
             cert_type = upload_request.parameters.cert_type
         end
 
-        -- Final fallback: infer from filename
         if not cert_type then
             local fname = (file.filename or ""):lower()
-            if fname:match("key") then
-                cert_type = "key"
-            elseif fname:match("crt") then
-                cert_type = "crt"
-            else
-                cert_type = "trust"
-            end
+            if fname:match("key") then cert_type = "key"
+            elseif fname:match("crt") then cert_type = "crt"
+            else cert_type = "trust" end
         end
 
         local cert_info = CERT_FILES[cert_type]
@@ -166,11 +182,6 @@ function BasicStation:UPLOAD_init()
             return false, { code = 5, error = "Invalid certificate type: " .. tostring(cert_type) }
         end
 
-        -- Remove existing target file before the framework moves the new one.
-        -- The framework uses nixio.fs.move() which on cross-device moves (tmpfs→overlay)
-        -- fails with EACCES if the target file exists and is owned by root, because
-        -- uhttpd cannot overwrite it. Removing first lets the move create a fresh file
-        -- in the world-writable directory, which uhttpd can do.
         if fs.access(cert_info.path) then
             fs.remove(cert_info.path)
         end
@@ -191,7 +202,6 @@ function BasicStation:UPLOAD_after_upload_hook(upload_request)
     cursor:set("basicstation", "auth", cert_type, file.location)
     cursor:commit("basicstation")
 
-    -- chmod via os.execute since nixio.fs.chmod may run as uhttpd user
     if cert_type == "key" then
         os.execute("chmod 0600 " .. file.location)
     else

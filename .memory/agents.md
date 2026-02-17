@@ -2,7 +2,7 @@
 
 Last updated: 2026-02-17
 
-## Status: All original bugs FIXED. 6 additional UI/config fixes applied (2026-02-17)
+## Status: All original bugs FIXED. 7 additional UI/config fixes applied (2026-02-17)
 
 | Bug | Status | Verified |
 |-----|--------|----------|
@@ -18,6 +18,7 @@ Last updated: 2026-02-17
 | Fix 9: Init script reading wrong option names | FIXED | Yes — camelCase→underscore |
 | Fix 10: Missing freq defaults | FIXED | Yes — AS923 band added |
 | Fix 11: rules="float" crashes component | FIXED | Yes — no more console exceptions |
+| Fix 12: Station ID and Token not saving | FIXED | Yes — added api="/api/uci" and enabled stationid editing |
 
 ## Files Modified (all changes are in source AND deployed to device)
 
@@ -94,6 +95,13 @@ Last updated: 2026-02-17
   - Error: `Unhandled token float` in `Object.compile` crashes `convertedRules` computed property
   - This crashes the ENTIRE component during render — not just the Advanced tab, but ALL tabs
   - Explains: no logs displayed, RSSI tcomp not loading, status badge broken
+
+### Fix 12 — Station ID and Token not saving (2026-02-17)
+
+- `package/feeds/vuci/vuci-app-basicstation-ui/src/src/views/services/Basicstation.vue`
+  - Added `api="/api/uci"` to both `vuci-form` instances to use standard UCI API.
+  - Removed `readonly` and `disabled` from `stationid` field to allow manual override.
+  - **Root cause**: Standard `BasicService` doesn't implement `PUT` for config sections; using `/api/uci` is the standard VUCI way for UCI CRUD.
 
 ## Critical Knowledge: VUCI Upload Framework
 

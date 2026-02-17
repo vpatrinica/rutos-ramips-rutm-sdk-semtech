@@ -394,6 +394,15 @@ which returns unfiltered data). Fixed to `/api/basicstation/rfconf` (routes to
 `GET_TYPE_rfconf()` which returns only rfconf-typed sections). Same fix applied
 for `/api/basicstation/rssitcomp`.
 
+**Station ID and Token not saving (FIXED):** The Vue component was using the
+default component name as the API base, resulting in `PUT /api/basicstation/config/*`
+which the custom Lua API did not implement (501 Not Implemented). Fixed by adding
+`api="/api/uci"` to `vuci-form` to use the standard VUCI UCI API.
+
+**Station ID override disabled (FIXED):** The `stationid` field was marked as
+`readonly` and `disabled`. Removed these attributes to allow manual overrides
+when the auto-generated ID (from MAC) is not desired.
+
 **File upload saving all certs as tc.trust (FIXED):** Multiple root causes:
 (a) `file.fieldname` doesn't exist in the upload framework, (b)
 `file.content_disposition` is stripped by framework, (c) `service_groups_enum`
