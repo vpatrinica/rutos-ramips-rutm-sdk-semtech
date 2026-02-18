@@ -292,6 +292,12 @@ make package/lora-basicstation/clean         && make package/lora-basicstation/c
 
 # Deploy all LoRaWAN packages to device (builds bundle, scps, installs)
 # Defaults from environment (.env)
+./host_deploy.sh
+
+# A suite of Python utilities for patching and verification is available in avp_tools/
+# See avp_tools/README.md for details on individual tools.
+# Example:
+python3 avp_tools/deploy_final.py
 ```
 
 The deploy script (`host_deploy.sh`) searches `bin/packages/` for IPKs matching

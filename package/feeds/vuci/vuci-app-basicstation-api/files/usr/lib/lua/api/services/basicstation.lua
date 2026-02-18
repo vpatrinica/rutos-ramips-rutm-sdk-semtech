@@ -18,7 +18,7 @@ local function log(msg)
     os.execute(string.format("logger -t BASICSTATION '%s'", msg:gsub("'", "'\\''")))
 end
 
-log("BASICSTATION SERVICE LOADED v12")
+log("BASICSTATION SERVICE LOADED v13")
 
 -- Helper: Get all UCI configuration as an array of sections
 function BasicStation:get_all_config()
@@ -63,45 +63,122 @@ function BasicStation:GET_TYPE_config(sid)
     return self:ResponseOK(section)
 end
 
--- PUT_TYPE_config: handles PUT /api/basicstation/config/:sid
--- This is what vuci-form uses when saving a named section
-function BasicStation:PUT_TYPE_config(sid, data)
-    log("PUT_TYPE_config sid=" .. tostring(sid))
-    return self:POST_TYPE_config(sid, data)
+-- Action-based save to bypass potential PUT restrictions in BasicService bytecode
+function BasicStation:POST_action_save_config(data)
+    log("Action save_config called")
+    
+    -- VUCI Action data can be in data or data.data depending on axios config
+    local group = data.service_group or (data.data and data.data.service_group)
+    local sid = data.sid or (data.data and data.data.sid)
+    local payload = data.data and data.data.data or data.data or data
+    
+    if not group or type(payload) ~= "table" then
+        log("Invalid action payload: group=" .. tostring(group))
+        return self:Response(400, { success = false, error = "Missing group or data payload" })
+    end
+    
+    return self:handle_uci_save(group, sid, payload)
 end
 
--- POST_TYPE_config: handles POST updates (fallback)
-function BasicStation:POST_TYPE_config(sid, data)
-    log("POST_TYPE_config sid=" .. tostring(sid))
-    if not sid or not data then
-        return { error = "Missing section ID or data" }
-    end
-
+function BasicStation:handle_uci_save(group, sid, data)
     local u = uci.cursor()
-    
-    -- Check existence
-    local exists = u:get_all(self.config, sid)
-    if not exists then
-        log("Section " .. sid .. " not found")
-        return { error = "Section not found: " .. sid }
-    end
+    local config = "basicstation"
+    local section_name = sid
+    local section_type = (group ~= "config") and group or nil
 
-    -- Update section values
-    for k, v in pairs(data) do
-        -- Skip metadata keys
-        if k:sub(1, 1) ~= "." and k ~= "id" then
-            log("Setting " .. k .. "=" .. tostring(v))
-            u:set(self.config, sid, k, v)
+    log(string.format("Saving UCI: group=%s, sid=%s", tostring(group), tostring(sid)))
+
+    if not section_name or section_name == "" then
+        if section_type then
+            section_name = u:add(config, section_type)
+        else
+            return self:Response(400, { success = false, error = "Section SID required" })
         end
     end
 
-    if u:commit(self.config) then
-        log("Commit successful")
-        return { success = true }
+    local exists = u:get_all(config, section_name)
+    if not exists then
+        if section_type then
+            u:section(config, section_type, section_name)
+        else
+            return self:Response(404, { success = false, error = "Section not found: " .. tostring(section_name) })
+        end
     end
 
-    log("Commit failed")
-    return { error = "Failed to commit UCI changes" }
+    for k, v in pairs(data) do
+        if type(k) == "string" and k:sub(1,1) ~= "." and k ~= "id" then
+            if type(v) == "table" then
+                u:set_list(config, section_name, k, v)
+            elseif type(v) == "boolean" then
+                u:set(config, section_name, k, v and "1" or "0")
+            else
+                u:set(config, section_name, k, tostring(v))
+            end
+        end
+    end
+
+    if u:commit(config) then
+        log("UCI commit successful for " .. tostring(section_name))
+        return self:ResponseOK({ success = true, data = { sid = section_name } })
+    end
+
+    log("UCI commit failed for " .. config)
+    return self:Response(500, { success = false, error = "UCI commit failed" })
+end
+
+-- Low-level PUT override to fix 500 Internal Server Errors from the framework
+function BasicStation:PUT(params, data)
+    log("BasicStation:PUT called (low-level)")
+    
+    local group = "config"
+    local sid = nil
+    
+    if type(params) == "table" then
+        group = params.service_group or group
+        sid = params.sid
+    end
+
+    local payload = data
+    if type(data) == "table" and data.data then
+        payload = data.data
+    end
+
+    if type(payload) ~= "table" then
+        log("PUT Error: Payload is not a table")
+        return self:Response(400, { success = false, error = "Invalid data payload" })
+    end
+
+    return self:handle_uci_save(group, sid, payload)
+end
+
+function BasicStation:POST(params, data)
+    log("BasicStation:POST called")
+    
+    if type(params) == "table" and params.service_group == "actions" then
+        local action = params.sid
+        log("Action detected: " .. tostring(action))
+        if action == "save_config" then
+            return self:POST_action_save_config(data)
+        end
+    end
+
+    return self:PUT(params, data)
+end
+
+function BasicStation:DELETE(params)
+    local sid = params and params.sid
+    log("BasicStation:DELETE called for sid: " .. tostring(sid))
+    
+    if not sid or sid == "" then
+        return self:Response(400, { success = false, error = "Section ID is required" })
+    end
+
+    local u = uci.cursor()
+    if u:delete("basicstation", sid) and u:commit("basicstation") then
+        return self:ResponseOK({ success = true })
+    end
+    
+    return self:Response(500, { success = false, error = "Failed to delete section" })
 end
 
 -- GET_TYPE_rfconf: handles /api/basicstation/config/rfconf

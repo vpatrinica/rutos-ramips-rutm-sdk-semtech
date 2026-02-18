@@ -1,5 +1,5 @@
 <template>
-  <vuci-form config="basicstation" api="/api/uci" v-slot="{ uciData }">
+  <vuci-form config="basicstation" custom-save @save="handleSave" v-slot="{ uciData }">
     <a-tabs :default-active-key="activeTab" class="basicstation-tabs">
       <a-tab-pane key="general" :tab="$t('General Settings')">
           <!-- Station Identity -->
@@ -173,13 +173,15 @@
               :uci-section="s"
               :label="$t('Size (MB)')"
               name="log_size"
-              rules="range(1,10)"
+              rules="uinteger"
+              type="number"
             />
             <vuci-form-item-input
               :uci-section="s"
               :label="$t('Rotate')"
               name="log_rotate"
-              rules="range(1,10)"
+              rules="uinteger"
+              type="number"
             />
           </vuci-named-section>
       </a-tab-pane>
@@ -253,7 +255,7 @@
               <vuci-form-item-switch :uci-section="s" name="paGain" />
             </template>
             <template #pwrIdx="{ s }">
-              <vuci-form-item-input :uci-section="s" name="pwrIdx" rules="range(0,22)" />
+              <vuci-form-item-input :uci-section="s" name="pwrIdx" rules="uinteger" type="number" />
             </template>
             <template #usedBy="{ s }">
               <vuci-form-item-select :uci-section="s" name="usedBy" :options="rfConfOptions" multiple />
@@ -445,6 +447,33 @@ export default {
       const container = this.$refs.logContainer;
       if (container) {
         container.scrollTop = container.scrollHeight;
+      }
+    },
+    async handleSave(uciData) {
+      this.$spin(this.$t('Saving configuration...'));
+      try {
+        // Iterate through all sections in uciData and save them via action
+        for (const stype in uciData) {
+          const sections = uciData[stype];
+          for (const sid in sections) {
+            const data = sections[sid];
+            // Determine service group for the API call
+            // Named sections in vuci-form are usually under stype='config'
+            // Typed sections are under their own stype name
+            await this.$axios.post('/api/basicstation/actions/save_config', {
+              data: {
+                service_group: stype === 'station' || stype === 'auth' || stype === 'sx130x' ? 'config' : stype,
+                sid: sid,
+                data: data
+              }
+            });
+          }
+        }
+        this.$message.success(this.$t('Configuration saved successfully'));
+      } catch (e) {
+        this.$message.error(this.$t('Failed to save configuration'));
+      } finally {
+        this.$spin(false);
       }
     }
   },

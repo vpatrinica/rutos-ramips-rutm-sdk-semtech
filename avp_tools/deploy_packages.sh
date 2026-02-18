@@ -1,9 +1,17 @@
 #!/bin/bash
 
+# Load .env if present
+PARENT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -f "${PARENT_DIR}/.env" ]; then
+    set -a
+    . "${PARENT_DIR}/.env"
+    set +a
+fi
+
 # Configuration
-REMOTE_HOST="${1:-192.168.1.1}"
-REMOTE_USER="${2:-root}"
-REMOTE_DIR="/home/admin/avp-packages"
+REMOTE_HOST="${1:-${DEVICE_IP:-192.168.1.1}}"
+REMOTE_USER="${2:-${DEVICE_USER:-root}}"
+REMOTE_DIR="/tmp/avp-packages"
 
 # Find all matching IPK files
 # mapfile -t PACKAGES < <(find bin/packages -name "*.ipk" | grep -E "basicstation|lora|mbedtls|sx1302|python3-pyopenssl|python3-pyserial|python3-requests|python3-ubus|python3-uci|python3-pymodbus|pahomqtt|python3-six|python3-cryptography|python3-bcrypt|python3-paramiko|libsodium|python3-cffi|python3-pycparser|python3-ply|python3-certifi|python3-chardet|python3-idna|python3-urllib3|python3-base|python3-light|python3-email|python3-logging|python3-urllib|python3-openssl|python3-ctypes|python3-multiprocessing|python3-decimal|python3-asyncio|python3-uuid|python3-xml|python3-codecs")

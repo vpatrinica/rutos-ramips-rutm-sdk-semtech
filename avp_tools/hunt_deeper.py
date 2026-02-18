@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 
 # Add util dir to path to import env_config
-util_path = Path(__file__).resolve().parent / "util"
+util_path = Path(__file__).resolve().parent.parent / "util"
 sys.path.append(str(util_path))
 from env_config import DEVICE_IP, DEVICE_USER, DEVICE_PASS
 
