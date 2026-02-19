@@ -18,11 +18,21 @@ Last updated: 2026-02-17
 | Fix 9: Init script reading wrong option names | FIXED | Yes — camelCase→underscore |
 | Fix 10: Missing freq defaults | FIXED | Yes — AS923 band added |
 | Fix 11: rules="float" crashes component | FIXED | Yes — no more console exceptions |
-| Fix 12: Station ID and Token not saving | FIXED | Yes — added api="/api/uci" and enabled stationid editing |
+| Fix 12: Station ID and Token not saving | FIXED | Yes — implemented PUT/POST handlers in Lua backend and removed ignored frontend api prop |
+22: | Fix 13: 501 Not Implemented on Save | FIXED | Yes — Added explicit PUT/POST/DELETE dispatchers to basicstation.lua |
 
 ## Files Modified (all changes are in source AND deployed to device)
 
-### Bug 1 — Log tab empty
+### Fix 12 & 13 — 501 Not Implemented / Saving issues (2026-02-18)
+
+- `package/feeds/vuci/vuci-app-basicstation-api/files/usr/lib/lua/api/services/basicstation.lua`
+  - Added explicit `PUT`, `POST`, and `DELETE` method overrides to the `BasicStation` class.
+  - **Root cause**: The base `BasicService.lua` (bytecode) contains a default `PUT` implementation that simply returns "PUT not implemented" (HTTP 501). It also doesn't automatically dispatch `POST` to `POST_TYPE_...` handlers for configuration updates.
+  - **Fix**: The new handlers generically dispatch to `_TYPE_` logic or handle UCI updates directly for the `config` and other service groups. This ensures that any `PUT` or `POST` request from the frontend is correctly processed.
+  - **Robustness**: The new `POST` handler also checks for wrapped data (`data.data`) which is common in some VUCI/Axios configurations.
+- `package/feeds/vuci/vuci-app-basicstation-ui/src/src/views/services/Basicstation.vue`
+  - Removed `api="/api/uci"` from `<vuci-form>`.
+  - **Reasoning**: This prop was being ignored by the framework, and since the backend now correctly handles the service-specific API (`/api/basicstation/config/...`), it's safer and more consistent to let the form use its default service API.
 
 - `package/feeds/packages/lora-basicstation/src/src-linux/sys_log.c:157`
   - Changed `S_IRUSR|S_IWUSR|S_IRGRP` → `S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH` (0644)

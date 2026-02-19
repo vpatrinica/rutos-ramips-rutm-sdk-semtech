@@ -399,10 +399,13 @@ which returns unfiltered data). Fixed to `/api/basicstation/rfconf` (routes to
 `GET_TYPE_rfconf()` which returns only rfconf-typed sections). Same fix applied
 for `/api/basicstation/rssitcomp`.
 
-**Station ID and Token not saving (FIXED):** The Vue component was using the
-default component name as the API base, resulting in `PUT /api/basicstation/config/*`
-which the custom Lua API did not implement (501 Not Implemented). Fixed by adding
-`api="/api/uci"` to `vuci-form` to use the standard VUCI UCI API.
+**Station ID and Token not saving (FIXED):** The standard `BasicService.lua`
+(bytecode) only implements `GET` dispatching and returns a 501 for `PUT`. Fixed
+by implementing explicit `PUT`, `POST`, and `DELETE` handlers in the Lua backend
+(`basicstation.lua`) to correctly process and commit UCI updates for all
+service groups. The frontend `api="/api/uci"` was also removed from `vuci-form`
+as it was being ignored; the form now uses the service-specific API which is
+fully implemented on the backend.
 
 **Station ID override disabled (FIXED):** The `stationid` field was marked as
 `readonly` and `disabled`. Removed these attributes to allow manual overrides

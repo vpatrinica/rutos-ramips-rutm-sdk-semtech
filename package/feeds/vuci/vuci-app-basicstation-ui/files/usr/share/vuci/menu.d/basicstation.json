@@ -8,6 +8,9 @@
     "acls": [
       "services/basicstation"
     ],
+    "files": [
+      "/etc/config/basicstation"
+    ],
     "view": "services/Basicstation",
     "index": 10,
     "main_page": true
@@ -17,6 +20,9 @@
     "acls": [
       "services/basicstation"
     ],
+    "files": [
+      "/etc/config/basicstation"
+    ],
     "view": "services/Basicstation",
     "tab": "advanced",
     "index": 20
@@ -25,6 +31,9 @@
     "title": "Log Messages",
     "acls": [
       "services/basicstation"
+    ],
+    "files": [
+      "/etc/config/basicstation"
     ],
     "view": "services/Basicstation",
     "tab": "log",

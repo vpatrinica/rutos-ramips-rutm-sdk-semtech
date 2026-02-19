@@ -1,5 +1,8 @@
 <template>
   <vuci-form config="basicstation" custom-save @save="handleSave" v-slot="{ uciData }">
+    <div class="lorawan-build-tag">
+      {{ $t('LoRaWAN UI Build') }}: {{ buildVersion }} ({{ $t('Build') }} {{ buildNumber }})
+    </div>
     <a-tabs :default-active-key="activeTab" class="basicstation-tabs">
       <a-tab-pane key="general" :tab="$t('General Settings')">
           <!-- Station Identity -->
@@ -7,6 +10,8 @@
             name="station"
             :title="$t('Station Identity')"
             :uci-data="uciData"
+            :endpoints="[{endpoint: 'basicstation/config'}]"
+            data-key="config"
             v-slot="{ s }"
           >
             <vuci-form-item-input
@@ -29,6 +34,8 @@
             name="auth"
             :title="$t('Authentication')"
             :uci-data="uciData"
+            :endpoints="[{endpoint: 'basicstation/config'}]"
+            data-key="config"
             v-slot="{ s }"
           >
             <vuci-form-item-select
@@ -56,7 +63,6 @@
               :label="$t('Port')"
               name="port"
               required
-              rules="uinteger"
             />
             <!-- Token for serverAndClientToken mode -->
             <vuci-form-item-input
@@ -108,6 +114,8 @@
             name="sx130x"
             :title="$t('Radio Configuration')"
             :uci-data="uciData"
+            :endpoints="[{endpoint: 'basicstation/config'}]"
+            data-key="config"
             v-slot="{ s }"
           >
             <vuci-form-item-select
@@ -161,6 +169,8 @@
             name="station"
             :title="$t('Logging')"
             :uci-data="uciData"
+            :endpoints="[{endpoint: 'basicstation/config'}]"
+            data-key="config"
             v-slot="{ s }"
           >
             <vuci-form-item-select
@@ -173,14 +183,12 @@
               :uci-section="s"
               :label="$t('Size (MB)')"
               name="log_size"
-              rules="uinteger"
               type="number"
             />
             <vuci-form-item-input
               :uci-section="s"
               :label="$t('Rotate')"
               name="log_rotate"
-              rules="uinteger"
               type="number"
             />
           </vuci-named-section>
@@ -202,10 +210,10 @@
               <vuci-form-item-switch :uci-section="s" name="txEnable" />
             </template>
             <template #freq="{ s }">
-              <vuci-form-item-input :uci-section="s" name="freq" rules="uinteger" />
+              <vuci-form-item-input :uci-section="s" name="freq" />
             </template>
             <template #antennaGain="{ s }">
-              <vuci-form-item-input :uci-section="s" name="antennaGain" rules="uinteger" />
+              <vuci-form-item-input :uci-section="s" name="antennaGain" />
             </template>
             <template #rssiOffset="{ s }">
               <vuci-form-item-input :uci-section="s" name="rssiOffset" />
@@ -249,13 +257,13 @@
             addremove
           >
             <template #rfPower="{ s }">
-              <vuci-form-item-input :uci-section="s" name="rfPower" rules="uinteger" />
+              <vuci-form-item-input :uci-section="s" name="rfPower" />
             </template>
             <template #paGain="{ s }">
               <vuci-form-item-switch :uci-section="s" name="paGain" />
             </template>
             <template #pwrIdx="{ s }">
-              <vuci-form-item-input :uci-section="s" name="pwrIdx" rules="uinteger" type="number" />
+              <vuci-form-item-input :uci-section="s" name="pwrIdx" type="number" />
             </template>
             <template #usedBy="{ s }">
               <vuci-form-item-select :uci-section="s" name="usedBy" :options="rfConfOptions" multiple />
@@ -297,6 +305,8 @@ export default {
   data() {
     return {
       activeTab: this.tab || 'general',
+      buildVersion: '2026-02-18 14:47',
+      buildNumber: 4,
       logContent: "",
       rfConfOptions: [],
       rssiTcompOptions: [],
@@ -460,9 +470,18 @@ export default {
             // Determine service group for the API call
             // Named sections in vuci-form are usually under stype='config'
             // Typed sections are under their own stype name
+            let group = stype;
+            if (stype === 'basicstation' || stype === 'config') {
+               if (sid === 'station' || sid === 'auth' || sid === 'sx130x') {
+                 group = sid;
+               } else {
+                 group = 'config';
+               }
+            }
+
             await this.$axios.post('/api/basicstation/actions/save_config', {
               data: {
-                service_group: stype === 'station' || stype === 'auth' || stype === 'sx130x' ? 'config' : stype,
+                service_group: group,
                 sid: sid,
                 data: data
               }
@@ -496,4 +515,11 @@ pre {
 .basicstation-tabs {
     padding: 24px;
 }
+  .lorawan-build-tag {
+    padding: 8px 24px 0 24px;
+    font-size: 12px;
+    color: #666666;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 </style>
