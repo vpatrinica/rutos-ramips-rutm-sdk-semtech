@@ -129,7 +129,8 @@ end
 -- Low-level PUT override to fix 500 Internal Server Errors from the framework
 function BasicStation:PUT(params, data)
     log("BasicStation:PUT called (low-level)")
-    
+    log("PUT params: " .. tostring(params))
+    log("PUT data: " .. tostring(data))
     local group = "config"
     local sid = nil
     
@@ -138,14 +139,40 @@ function BasicStation:PUT(params, data)
         sid = params.sid
     end
 
+    log(string.format("PUT params: group=%s, sid=%s", tostring(group), tostring(sid)))
+
     local payload = data
     if type(data) == "table" and data.data then
         payload = data.data
     end
+    
+    if payload == nil or (type(payload) == "table" and not next(payload)) then
+        log("PUT Payload is empty or nil, ignoring gracefully")
+        return self:ResponseOK({ success = true, ignored = true })
+    end
 
-    if type(payload) ~= "table" then
-        log("PUT Error: Payload is not a table")
-        return self:Response(400, { success = false, error = "Invalid data payload" })
+    if type(payload) == "table" then
+        local keys = {}
+        for k in pairs(payload) do table.insert(keys, k) end
+        log("PUT payload: table with keys: " .. table.concat(keys, ", "))
+    elseif type(payload) == "string" then
+        log("PUT payload is string, attempting JSON decode: " .. payload:sub(1, 200))
+        local ok, decoded = pcall(function()
+            local json = require("cjson")
+            return json.decode(payload)
+        end)
+        if ok and type(decoded) == "table" then
+            payload = decoded
+            local keys = {}
+            for k in pairs(payload) do table.insert(keys, k) end
+            log("PUT JSON decoded, keys: " .. table.concat(keys, ", "))
+        else
+            log("PUT Error: Failed to decode JSON string")
+            return self:Response(400, { success = false, error = "Invalid data payload: not a table or valid JSON" })
+        end
+    else
+        log("PUT Error: Payload is an unsupported type")
+        return self:Response(400, { success = false, error = "Invalid data payload type" })
     end
 
     return self:handle_uci_save(group, sid, payload)

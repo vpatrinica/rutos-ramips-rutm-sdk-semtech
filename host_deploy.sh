@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # AVP Host Deployment Script
-# Usage: ./host_deploy.sh [REMOTE_IP] [USER]
+# Usage: ./host_deploy.sh  [bundle_type]
+#
+# bundle_type defaults to "vuci" and controls which IPKs are packaged.
 
 # Load .env if present
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -11,8 +13,8 @@ if [ -f "${SCRIPT_DIR}/.env" ]; then
     set +a
 fi
 
-REMOTE_HOST="${1:-${DEVICE_IP:-192.168.1.1}}"
-REMOTE_USER="${2:-${DEVICE_USER:-root}}"
+REMOTE_HOST="${DEVICE_IP:-192.168.1.1}"
+REMOTE_USER="${DEVICE_USER:-root}"
 BUNDLE_DIR="avp_bundle"
 BUNDLE_TAR="avp_bundle.tar.gz"
 REMOTE_DIR="/tmp/avp_bundle"
@@ -23,8 +25,28 @@ echo "--------------------------"
 # 1. Create Tarball
 echo "Creating bundle tarball..."
 
-#copy relevant files to bundle directory
-mapfile -t PACKAGES < <(find bin/packages -name "*.ipk" | grep -E "basicstation|lora|mbedtls|sx1302")
+
+# third argument controls which subset of packages to bundle. Default to "vuci" if not supplied.
+# Usage additions: ./host_deploy.sh [REMOTE_IP] [USER] [bundle_type]
+#
+# - "vuci" (default) will only pick the two VUCI BasicStation web UI packages
+# - "all" (or any other value) will grab every IPK matching our usual
+#   patterns.  The patterns themselves can be fine‑tuned later.
+
+BUNDLE_TYPE="${1:-vuci}"
+echo "Bundle type: ${BUNDLE_TYPE}"
+
+# decide which packages to copy based on the requested type
+if [ "${BUNDLE_TYPE}" = "vuci" ]; then
+    # only include the frontend/backend UI packages
+    PATTERN="vuci-app-basicstation-(api|ui)"
+else
+    # everything related to BasicStation/LoRa/mbedtls/sx1302
+    PATTERN="basicstation|lora|mbedtls|sx1302"
+fi
+
+mapfile -t PACKAGES < <(find bin/packages -name "*.ipk" | grep -E "${PATTERN}")
+
 rm -rf "${BUNDLE_DIR}"
 mkdir -p "${BUNDLE_DIR}"
 for PKG in "${PACKAGES[@]}"; do
@@ -36,20 +58,34 @@ cat > "${BUNDLE_DIR}/install.sh" << 'EOF'
 #!/bin/sh
 
 # BasicStation and LoRa components
-echo "Installing BasicStation and LoRa components..."
-opkg remove --force-depends lora-basicstation
-opkg remove --force-depends vuci-app-basicstation-api
-opkg remove --force-depends vuci-app-basicstation-ui
-opkg remove --force-depends sx1302_hal-utils
-opkg remove --force-depends libmbedtls21
+# Only operate on the packages that are actually part of the bundle.
 
-opkg install --force-maintainer libmbedtls21_*.ipk
-opkg install --force-maintainer sx1302_hal-utils_*.ipk
-opkg install --force-maintainer lora-basicstation_*.ipk
-opkg install --force-maintainer vuci-app-basicstation-api_*.ipk
-opkg install --force-maintainer vuci-app-basicstation-ui_*.ipk
+set -e
 
-echo "Installation complete!"
+echo "Installing packages from bundle $(pwd)..."
+
+# remove any installed copy of each package (ignores errors)
+for pkgfile in *.ipk; do
+    pname=$(basename "$pkgfile" | cut -d_ -f1)
+    echo "Removing old $pname if present..."
+    opkg remove --force-depends "$pname" 2>/dev/null || true
+    # Forcefully delete left-over config files that OPKG refuses to overwrite on next install
+    if [ "$pname" = "vuci-app-basicstation-ui" ]; then
+        rm -f /usr/share/vuci/menu.d/basicstation.json
+    fi
+done
+
+# install every IPK in the directory
+for pkgfile in *.ipk; do
+    echo "Installing $pkgfile..."
+    opkg install --force-maintainer "$pkgfile"
+done
+
+echo "Reloading ACLs and restarting RPCD..."
+ubus call session reload_acls
+/etc/init.d/rpcd restart
+
+ echo "Installation complete!"
 EOF
 chmod +x "${BUNDLE_DIR}/install.sh"
 

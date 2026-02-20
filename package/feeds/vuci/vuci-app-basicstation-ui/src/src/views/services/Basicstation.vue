@@ -9,11 +9,12 @@
           <vuci-named-section
             name="station"
             :title="$t('Station Identity')"
-            :uci-data="uciData"
-            :endpoints="[{endpoint: 'basicstation/config'}]"
-            data-key="config"
+            :uci-data="mapUciData(uciData)"
+            :endpoints="configEndpoint"
+            data-key="station"
             v-slot="{ s }"
           >
+            <span style="display:none">{{ debugLog('Station S', s) }}</span>
             <vuci-form-item-input
               :uci-section="s"
               :label="$t('Interface for station ID generation')"
@@ -33,9 +34,9 @@
           <vuci-named-section
             name="auth"
             :title="$t('Authentication')"
-            :uci-data="uciData"
-            :endpoints="[{endpoint: 'basicstation/config'}]"
-            data-key="config"
+            :uci-data="mapUciData(uciData)"
+            :endpoints="configEndpoint"
+            data-key="auth"
             v-slot="{ s }"
           >
             <vuci-form-item-select
@@ -113,9 +114,9 @@
           <vuci-named-section
             name="sx130x"
             :title="$t('Radio Configuration')"
-            :uci-data="uciData"
-            :endpoints="[{endpoint: 'basicstation/config'}]"
-            data-key="config"
+            :uci-data="mapUciData(uciData)"
+            :endpoints="configEndpoint"
+            data-key="sx130x"
             v-slot="{ s }"
           >
             <vuci-form-item-select
@@ -168,9 +169,9 @@
           <vuci-named-section
             name="station"
             :title="$t('Logging')"
-            :uci-data="uciData"
-            :endpoints="[{endpoint: 'basicstation/config'}]"
-            data-key="config"
+            :uci-data="mapUciData(uciData)"
+            :endpoints="configEndpoint"
+            data-key="station"
             v-slot="{ s }"
           >
             <vuci-form-item-select
@@ -200,9 +201,12 @@
             type="rfconf"
             :title="$t('RF Configuration')"
             :columns="rfConfColumns"
-            :uci-data="uciData"
+            :uci-data="mapUciData(uciData)"
+            data-key="config"
+            :endpoints="configEndpoint"
             addremove
           >
+            <span style="display:none">{{ debugLog('RFConf S (sample)', s) }}</span>
             <template #type="{ s }">
               <vuci-form-item-select :uci-section="s" name="type" :options="[['SX1250', 'SX1250']]" />
             </template>
@@ -228,7 +232,9 @@
             type="rssitcomp"
             :title="$t('RSSI Tcomp')"
             :columns="rssiTcompColumns"
-            :uci-data="uciData"
+            :uci-data="mapUciData(uciData)"
+            data-key="config"
+            :endpoints="configEndpoint"
             addremove
           >
             <template #coeff_a="{ s }">
@@ -253,7 +259,9 @@
             type="txlut"
             :title="$t('TX Gain Lookup Table')"
             :columns="txLutColumns"
-            :uci-data="uciData"
+            :uci-data="mapUciData(uciData)"
+            data-key="config"
+            :endpoints="configEndpoint"
             addremove
           >
             <template #rfPower="{ s }">
@@ -305,8 +313,8 @@ export default {
   data() {
     return {
       activeTab: this.tab || 'general',
-      buildVersion: '2026-02-18 14:47',
-      buildNumber: 4,
+      buildVersion: '2026-02-19 20:47',
+      buildNumber: 6,
       logContent: "",
       rfConfOptions: [],
       rssiTcompOptions: [],
@@ -354,6 +362,10 @@ export default {
       autoRefresh: false,
       refreshTimer: null,
       serviceRunning: false,
+      configEndpoint: [{
+        endpoint: 'basicstation/config',
+        sectionFilter: (sections) => sections && sections[0]
+      }],
     };
   },
   async created() {
@@ -375,6 +387,33 @@ export default {
     }
   },
   methods: {
+    mapUciData(data) {
+      if (!data || !data.config) {
+        console.log("mapUciData: no data or config", data);
+        return data;
+      }
+      const config = data.config;
+      const out = { ...data };
+      
+      // Map named sections
+      ['station', 'auth', 'sx130x'].forEach(name => {
+         const items = config.filter(s => s['.name'] === name);
+         out[name] = items;
+         console.log(`mapUciData: ${name} -> ${items.length} items`);
+      });
+      
+      // Map typed sections
+      ['rfconf', 'rssitcomp', 'txlut'].forEach(type => {
+         const items = config.filter(s => s['.type'] === type);
+         out[type] = items;
+      });
+      
+      return out;
+    },
+    debugLog(msg, val) {
+      console.log(`DEBUG ${msg}:`, val);
+      return true; // Return truthy to use in v-if
+    },
     async loadUciOptions() {
       try {
         const rfconfRes = await this.$axios.get("/api/basicstation/rfconf");
