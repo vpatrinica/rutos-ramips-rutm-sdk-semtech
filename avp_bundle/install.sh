@@ -1,17 +1,31 @@
 #!/bin/sh
 
 # BasicStation and LoRa components
-echo "Installing BasicStation and LoRa components..."
-opkg remove --force-depends lora-basicstation
-opkg remove --force-depends vuci-app-basicstation-api
-opkg remove --force-depends vuci-app-basicstation-ui
-opkg remove --force-depends sx1302_hal-utils
-opkg remove --force-depends libmbedtls21
+# Only operate on the packages that are actually part of the bundle.
 
-opkg install --force-maintainer libmbedtls21_*.ipk
-opkg install --force-maintainer sx1302_hal-utils_*.ipk
-opkg install --force-maintainer lora-basicstation_*.ipk
-opkg install --force-maintainer vuci-app-basicstation-api_*.ipk
-opkg install --force-maintainer vuci-app-basicstation-ui_*.ipk
+set -e
 
-echo "Installation complete!"
+echo "Installing packages from bundle $(pwd)..."
+
+# remove any installed copy of each package (ignores errors)
+for pkgfile in *.ipk; do
+    pname=$(basename "$pkgfile" | cut -d_ -f1)
+    echo "Removing old $pname if present..."
+    opkg remove --force-depends "$pname" 2>/dev/null || true
+    # Forcefully delete left-over config files that OPKG refuses to overwrite on next install
+    if [ "$pname" = "vuci-app-basicstation-ui" ]; then
+        rm -f /usr/share/vuci/menu.d/basicstation.json
+    fi
+done
+
+# install every IPK in the directory
+for pkgfile in *.ipk; do
+    echo "Installing $pkgfile..."
+    opkg install --force-maintainer "$pkgfile"
+done
+
+echo "Reloading ACLs and restarting RPCD..."
+ubus call session reload_acls
+/etc/init.d/rpcd restart
+
+ echo "Installation complete!"

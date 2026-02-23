@@ -3,295 +3,152 @@
     <div class="lorawan-build-tag">
       {{ $t('LoRaWAN UI Build') }}: {{ buildVersion }} ({{ $t('Build') }} {{ buildNumber }})
     </div>
+    <div style="padding: 20px; background: #eee; word-break: break-all;">
+      <strong>uciData Debug:</strong> {{ JSON.stringify(uciData) }}
+    </div>
     <a-tabs :default-active-key="activeTab" class="basicstation-tabs">
       <a-tab-pane key="general" :tab="$t('General Settings')">
-          <!-- Station Identity -->
-          <vuci-named-section
-            name="station"
-            :title="$t('Station Identity')"
-            :uci-data="mapUciData(uciData)"
-            :endpoints="configEndpoint"
-            data-key="station"
-            v-slot="{ s }"
-          >
-            <span style="display:none">{{ debugLog('Station S', s) }}</span>
-            <vuci-form-item-input
-              :uci-section="s"
-              :label="$t('Interface for station ID generation')"
-              name="idGenIf"
-              required
-              :help="$t('Station ID is derived from the MAC address of the chosen interface')"
-            />
-            <vuci-form-item-input
-              :uci-section="s"
-              :label="$t('Station ID')"
-              name="stationid"
-              :help="$t('Click save and apply to generate station ID')"
-            />
-          </vuci-named-section>
+        <!-- Station Identity and Logging -->
 
-          <!-- Authentication -->
-          <vuci-named-section
-            name="auth"
-            :title="$t('Authentication')"
-            :uci-data="mapUciData(uciData)"
-            :endpoints="configEndpoint"
-            data-key="auth"
-            v-slot="{ s }"
-          >
-            <vuci-form-item-select
-              :uci-section="s"
-              :label="$t('Credentials')"
-              name="cred"
-              :options="credOptions"
-              :help="$t('Credentials for LNS (TC) or CUPS (CUPS)')"
-            />
-            <vuci-form-item-select
-              :uci-section="s"
-              :label="$t('Authentication mode')"
-              name="mode"
-              :options="modeOptions"
-              :help="$t('Authentication mode for server connection')"
-            />
-            <vuci-form-item-input
-              :uci-section="s"
-              :label="$t('Server address')"
-              name="addr"
-              required
-            />
-            <vuci-form-item-input
-              :uci-section="s"
-              :label="$t('Port')"
-              name="port"
-              required
-            />
-            <!-- Token for serverAndClientToken mode -->
-            <vuci-form-item-input
-              v-if="s.mode === 'serverAndClientToken'"
-              :uci-section="s"
-              :label="$t('Authorization token')"
-              name="token"
-              required
-            />
-            <!-- Certificate uploads for serverAndClient mode -->
-            <tlt-form-model-item
-              v-if="s.mode === 'serverAndClient'"
-              :label="$t('Private key (tc.key)')"
-              :help="$t('Key will be saved to /etc/basicstation/tc.key')"
-            >
-              <tlt-upload
-                instant
-                name="key"
-                action="/api/basicstation/upload"
-              />
-            </tlt-form-model-item>
-            <tlt-form-model-item
-              v-if="s.mode === 'serverAndClient'"
-              :label="$t('Client certificate (tc.crt)')"
-              :help="$t('Certificate will be saved to /etc/basicstation/tc.crt')"
-            >
-              <tlt-upload
-                instant
-                name="crt"
-                action="/api/basicstation/upload"
-              />
-            </tlt-form-model-item>
-            <!-- CA certificate for any TLS mode -->
-            <tlt-form-model-item
-              v-if="s.mode !== 'no'"
-              :label="$t('CA certificate (tc.trust)')"
-              :help="$t('Certificate will be saved to /etc/basicstation/tc.trust')"
-            >
-              <tlt-upload
-                instant
-                name="trust"
-                action="/api/basicstation/upload"
-              />
-            </tlt-form-model-item>
-          </vuci-named-section>
+        <vuci-named-section name="station" :title="$t('Station Identity and Logging')"
+          :endpoints="getNamedEndpoint('station')" data-key="station" v-slot="{ s }" :uci-data="uciData">
+          <span style="display:none">{{ debugLog('Station S', s) }}</span>
+          <vuci-form-item-input :uci-section="s" :label="$t('Interface for station ID generation')" name="idGenIf"
+            required :help="$t('Station ID is derived from the MAC address of the chosen interface')" />
+          <vuci-form-item-input :uci-section="s" :label="$t('Station ID')" name="stationid"
+            :help="$t('Click save and apply to generate station ID')" />
+          <vuci-form-item-select :uci-section="s" :label="$t('Log Level')" name="log_level"
+            :options="logLevelOptions" />
+          <vuci-form-item-input :uci-section="s" :label="$t('Log Size (MB)')" name="log_size" type="number" />
+          <vuci-form-item-input :uci-section="s" :label="$t('Log Rotate')" name="log_rotate" type="number" />
+        </vuci-named-section>
 
-          <!-- Radio Configuration -->
-          <vuci-named-section
-            name="sx130x"
-            :title="$t('Radio Configuration')"
-            :uci-data="mapUciData(uciData)"
-            :endpoints="configEndpoint"
-            data-key="sx130x"
-            v-slot="{ s }"
-          >
-            <vuci-form-item-select
-              :uci-section="s"
-              :label="$t('Communication interface')"
-              name="comif"
-              :options="[['usb', 'USB']]"
-              :help="$t('Currently only USB devices are supported')"
-            />
-            <vuci-form-item-input
-              :uci-section="s"
-              :label="$t('Device path')"
-              name="devpath"
-              required
-              placeholder="/dev/ttyACM0"
-            />
-            <vuci-form-item-switch
-               :uci-section="s"
-               :label="$t('PPS')"
-               name="pps"
-               :help="$t('PPS (pulse per second) provided by GPS device or other source')"
-            />
-            <vuci-form-item-switch
-               :uci-section="s"
-               :label="$t('Public network')"
-               name="public"
-               :help="$t('Public or private LoRaWAN network')"
-            />
-            <vuci-form-item-select
-              :uci-section="s"
-              :label="$t('Clock source')"
-              name="clksrc"
-              :options="[['0', 'Radio 0'], ['1', 'Radio 1']]"
-            />
-            <vuci-form-item-select
-              :uci-section="s"
-              :label="$t('Radio 0')"
-              name="radio0"
-              :options="rfConfOptions"
-            />
-            <vuci-form-item-select
-              :uci-section="s"
-              :label="$t('Radio 1')"
-              name="radio1"
-              :options="rfConfOptions"
-            />
-          </vuci-named-section>
+        <!-- Authentication -->
+        <vuci-named-section name="auth" :title="$t('Authentication')" :endpoints="getNamedEndpoint('auth')"
+          data-key="auth" v-slot="{ s }" :uci-data="uciData">
+          <span style="display:none">{{ debugLog('Auth S (sample)', s) }}</span>
+          <vuci-form-item-select :uci-section="s" :label="$t('Credentials')" name="cred" :options="credOptions"
+            :help="$t('Credentials for LNS (TC) or CUPS (CUPS)')" />
+          <vuci-form-item-select :uci-section="s" :label="$t('Authentication mode')" name="mode" :options="modeOptions"
+            :help="$t('Authentication mode for server connection')" />
+          <vuci-form-item-input :uci-section="s" :label="$t('Server address')" name="addr" required />
+          <vuci-form-item-input :uci-section="s" :label="$t('Port')" name="port" required />
+          <!-- Token for serverAndClientToken mode -->
+          <vuci-form-item-input v-if="s.mode === 'serverAndClientToken'" :uci-section="s"
+            :label="$t('Authorization token')" name="token" required />
+          <!-- Certificate uploads for serverAndClient mode -->
+          <tlt-form-model-item v-if="s.mode === 'serverAndClient'" :label="$t('Private key (tc.key)')"
+            :help="$t('Key will be saved to /etc/basicstation/tc.key')">
+            <tlt-upload instant name="key" action="/api/basicstation/upload" />
+          </tlt-form-model-item>
+          <tlt-form-model-item v-if="s.mode === 'serverAndClient'" :label="$t('Client certificate (tc.crt)')"
+            :help="$t('Certificate will be saved to /etc/basicstation/tc.crt')">
+            <tlt-upload instant name="crt" action="/api/basicstation/upload" />
+          </tlt-form-model-item>
+          <!-- CA certificate for any TLS mode -->
+          <tlt-form-model-item v-if="s.mode !== 'no'" :label="$t('CA certificate (tc.trust)')"
+            :help="$t('Certificate will be saved to /etc/basicstation/tc.trust')">
+            <tlt-upload instant name="trust" action="/api/basicstation/upload" />
+          </tlt-form-model-item>
+        </vuci-named-section>
 
-          <!-- Logging -->
-          <vuci-named-section
-            name="station"
-            :title="$t('Logging')"
-            :uci-data="mapUciData(uciData)"
-            :endpoints="configEndpoint"
-            data-key="station"
-            v-slot="{ s }"
-          >
-            <vuci-form-item-select
-              :uci-section="s"
-              :label="$t('Level')"
-              name="log_level"
-              :options="logLevelOptions"
-            />
-            <vuci-form-item-input
-              :uci-section="s"
-              :label="$t('Size (MB)')"
-              name="log_size"
-              type="number"
-            />
-            <vuci-form-item-input
-              :uci-section="s"
-              :label="$t('Rotate')"
-              name="log_rotate"
-              type="number"
-            />
-          </vuci-named-section>
+        <!-- Radio Configuration -->
+        <vuci-named-section name="sx130x" :title="$t('Radio Configuration')" :endpoints="getNamedEndpoint('sx130x')"
+          data-key="sx130x" v-slot="{ s }" :uci-data="uciData">
+          <span style="display:none">{{ debugLog('SX130x S (sample)', s) }}</span>
+          <vuci-form-item-select :uci-section="s" :label="$t('Communication interface')" name="comif"
+            :options="[['usb', 'USB']]" :help="$t('Currently only USB devices are supported')" />
+          <vuci-form-item-input :uci-section="s" :label="$t('Device path')" name="devpath" required
+            placeholder="/dev/ttyACM0" />
+          <vuci-form-item-switch :uci-section="s" :label="$t('PPS')" name="pps"
+            :help="$t('PPS (pulse per second) provided by GPS device or other source')" />
+          <vuci-form-item-switch :uci-section="s" :label="$t('Public network')" name="public"
+            :help="$t('Public or private LoRaWAN network')" />
+          <vuci-form-item-select :uci-section="s" :label="$t('Clock source')" name="clksrc"
+            :options="[['0', 'Radio 0'], ['1', 'Radio 1']]" />
+          <vuci-form-item-select :uci-section="s" :label="$t('Radio 0')" name="radio0" :options="rfConfOptions" />
+          <vuci-form-item-select :uci-section="s" :label="$t('Radio 1')" name="radio1" :options="rfConfOptions" />
+        </vuci-named-section>
+
+
       </a-tab-pane>
 
       <a-tab-pane key="advanced" :tab="$t('Advanced Settings')">
-          <!-- RF Configuration -->
-          <vuci-typed-section
-            type="rfconf"
-            :title="$t('RF Configuration')"
-            :columns="rfConfColumns"
-            :uci-data="mapUciData(uciData)"
-            data-key="config"
-            :endpoints="configEndpoint"
-            addremove
-          >
-            <span style="display:none">{{ debugLog('RFConf S (sample)', s) }}</span>
-            <template #type="{ s }">
-              <vuci-form-item-select :uci-section="s" name="type" :options="[['SX1250', 'SX1250']]" />
-            </template>
-            <template #txEnable="{ s }">
-              <vuci-form-item-switch :uci-section="s" name="txEnable" />
-            </template>
-            <template #freq="{ s }">
-              <vuci-form-item-input :uci-section="s" name="freq" />
-            </template>
-            <template #antennaGain="{ s }">
-              <vuci-form-item-input :uci-section="s" name="antennaGain" />
-            </template>
-            <template #rssiOffset="{ s }">
-              <vuci-form-item-input :uci-section="s" name="rssiOffset" />
-            </template>
-            <template #useRssiTcomp="{ s }">
-              <vuci-form-item-select :uci-section="s" name="useRssiTcomp" :options="rssiTcompOptions" />
-            </template>
-          </vuci-typed-section>
+        <!-- RF Configuration -->
+        <vuci-typed-section type="rfconf" :title="$t('RF Configuration')" :columns="rfConfColumns" data-key="rfconf"
+          :endpoints="getTypedEndpoint('rfconf')" :uci-data="uciData">
+          <template #type="{ s }">
+            <vuci-form-item-select :uci-section="s" name="type" :options="[['SX1250', 'SX1250']]" />
+          </template>
+          <template #txEnable="{ s }">
+            <vuci-form-item-switch :uci-section="s" name="txEnable" />
+          </template>
+          <template #freq="{ s }">
+            <vuci-form-item-input :uci-section="s" name="freq" />
+          </template>
+          <template #antennaGain="{ s }">
+            <vuci-form-item-input :uci-section="s" name="antennaGain" />
+          </template>
+          <template #rssiOffset="{ s }">
+            <vuci-form-item-input :uci-section="s" name="rssiOffset" />
+          </template>
+          <template #useRssiTcomp="{ s }">
+            <vuci-form-item-select :uci-section="s" name="useRssiTcomp" :options="rssiTcompOptions" />
+          </template>
+        </vuci-typed-section>
 
-          <!-- RSSI Tcomp -->
-          <vuci-typed-section
-            type="rssitcomp"
-            :title="$t('RSSI Tcomp')"
-            :columns="rssiTcompColumns"
-            :uci-data="mapUciData(uciData)"
-            data-key="config"
-            :endpoints="configEndpoint"
-            addremove
-          >
-            <template #coeff_a="{ s }">
-              <vuci-form-item-input :uci-section="s" name="coeff_a" />
-            </template>
-            <template #coeff_b="{ s }">
-              <vuci-form-item-input :uci-section="s" name="coeff_b" />
-            </template>
-            <template #coeff_c="{ s }">
-              <vuci-form-item-input :uci-section="s" name="coeff_c" />
-            </template>
-            <template #coeff_d="{ s }">
-              <vuci-form-item-input :uci-section="s" name="coeff_d" />
-            </template>
-            <template #coeff_e="{ s }">
-              <vuci-form-item-input :uci-section="s" name="coeff_e" />
-            </template>
-          </vuci-typed-section>
+        <!-- RSSI Tcomp -->
+        <vuci-typed-section type="rssitcomp" :title="$t('RSSI Tcomp')" :columns="rssiTcompColumns" data-key="rssitcomp"
+          :endpoints="getTypedEndpoint('rssitcomp')" addremove :uci-data="uciData">
+          <template #coeff_a="{ s }">
+            <vuci-form-item-input :uci-section="s" name="coeff_a" />
+          </template>
+          <template #coeff_b="{ s }">
+            <vuci-form-item-input :uci-section="s" name="coeff_b" />
+          </template>
+          <template #coeff_c="{ s }">
+            <vuci-form-item-input :uci-section="s" name="coeff_c" />
+          </template>
+          <template #coeff_d="{ s }">
+            <vuci-form-item-input :uci-section="s" name="coeff_d" />
+          </template>
+          <template #coeff_e="{ s }">
+            <vuci-form-item-input :uci-section="s" name="coeff_e" />
+          </template>
+        </vuci-typed-section>
 
-          <!-- TX Gain Lookup Table -->
-          <vuci-typed-section
-            type="txlut"
-            :title="$t('TX Gain Lookup Table')"
-            :columns="txLutColumns"
-            :uci-data="mapUciData(uciData)"
-            data-key="config"
-            :endpoints="configEndpoint"
-            addremove
-          >
-            <template #rfPower="{ s }">
-              <vuci-form-item-input :uci-section="s" name="rfPower" />
-            </template>
-            <template #paGain="{ s }">
-              <vuci-form-item-switch :uci-section="s" name="paGain" />
-            </template>
-            <template #pwrIdx="{ s }">
-              <vuci-form-item-input :uci-section="s" name="pwrIdx" type="number" />
-            </template>
-            <template #usedBy="{ s }">
-              <vuci-form-item-select :uci-section="s" name="usedBy" :options="rfConfOptions" multiple />
-            </template>
-          </vuci-typed-section>
+        <!-- TX Gain Lookup Table -->
+        <vuci-typed-section type="txlut" :title="$t('TX Gain Lookup Table')" :columns="txLutColumns" data-key="txlut"
+          :endpoints="getTypedEndpoint('txlut')" addremove :uci-data="uciData">
+          <template #rfPower="{ s }">
+            <vuci-form-item-input :uci-section="s" name="rfPower" />
+          </template>
+          <template #paGain="{ s }">
+            <vuci-form-item-switch :uci-section="s" name="paGain" />
+          </template>
+          <template #pwrIdx="{ s }">
+            <vuci-form-item-input :uci-section="s" name="pwrIdx" type="number" />
+          </template>
+          <template #usedBy="{ s }">
+            <vuci-form-item-select :uci-section="s" name="usedBy" :options="rfConfOptions" multiple />
+          </template>
+        </vuci-typed-section>
       </a-tab-pane>
 
       <a-tab-pane key="log" :tab="$t('Log Messages')">
         <tlt-card :title="$t('Log Messages')">
           <template #title>
-             <span>{{ $t('Log Messages') }}</span>
-             <a-tag v-if="serviceRunning" color="green" style="margin-left: 10px">{{ $t('Running') }}</a-tag>
-             <a-tag v-else color="red" style="margin-left: 10px">{{ $t('Stopped') }}</a-tag>
+            <span>{{ $t('Log Messages') }}</span>
+            <a-tag v-if="serviceRunning" color="green" style="margin-left: 10px">{{ $t('Running') }}</a-tag>
+            <a-tag v-else color="red" style="margin-left: 10px">{{ $t('Stopped') }}</a-tag>
           </template>
           <div class="log-container" ref="logContainer">
             <pre>{{ logContent }}</pre>
           </div>
           <template #extra>
             <a-space>
-              <a-switch v-model="autoRefresh" :checked-children="$t('Auto-refresh ON')" :un-checked-children="$t('Auto-refresh OFF')" />
+              <a-switch v-model="autoRefresh" :checked-children="$t('Auto-refresh ON')"
+                :un-checked-children="$t('Auto-refresh OFF')" />
               <a-button type="danger" size="small" icon="delete" @click="clearLogs">{{ $t('Clear') }}</a-button>
               <a-button type="primary" size="small" icon="reload" @click="fetchLogs">{{ $t('Refresh') }}</a-button>
             </a-space>
@@ -303,6 +160,8 @@
 </template>
 
 <script>
+import buildInfo from '../../../build.json'
+
 export default {
   props: {
     tab: {
@@ -313,8 +172,8 @@ export default {
   data() {
     return {
       activeTab: this.tab || 'general',
-      buildVersion: '2026-02-19 20:47',
-      buildNumber: 6,
+      buildVersion: buildInfo.buildVersion || 'Fallback',
+      buildNumber: buildInfo.buildNumber || 0,
       logContent: "",
       rfConfOptions: [],
       rssiTcompOptions: [],
@@ -361,11 +220,7 @@ export default {
       ],
       autoRefresh: false,
       refreshTimer: null,
-      serviceRunning: false,
-      configEndpoint: [{
-        endpoint: 'basicstation/config',
-        sectionFilter: (sections) => sections && sections[0]
-      }],
+      serviceRunning: false
     };
   },
   async created() {
@@ -387,28 +242,49 @@ export default {
     }
   },
   methods: {
-    mapUciData(data) {
-      if (!data || !data.config) {
-        console.log("mapUciData: no data or config", data);
-        return data;
-      }
-      const config = data.config;
-      const out = { ...data };
-      
-      // Map named sections
-      ['station', 'auth', 'sx130x'].forEach(name => {
-         const items = config.filter(s => s['.name'] === name);
-         out[name] = items;
-         console.log(`mapUciData: ${name} -> ${items.length} items`);
-      });
-      
-      // Map typed sections
-      ['rfconf', 'rssitcomp', 'txlut'].forEach(type => {
-         const items = config.filter(s => s['.type'] === type);
-         out[type] = items;
-      });
-      
-      return out;
+    getNamedEndpoint(name) {
+      return [{
+        endpoint: 'basicstation/config',
+        sectionFilter: (res) => {
+          let data = res;
+          if (res && res.data) data = res.data;
+          console.log(`[getNamedEndpoint] Name=${name} Input:`, data);
+
+          // Unwrap basicstation structure if wrapped again
+          if (data && data.basicstation) data = data.basicstation;
+          if (data && data.config) data = data.config;
+
+          if (Array.isArray(data)) {
+            const result = data.find(s => s['.name'] === name) || { '.name': name };
+            console.log(`[getNamedEndpoint] Name=${name} Output:`, result);
+            return result;
+          }
+          console.log(`[getNamedEndpoint] Name=${name} Warning: Output not an array. Output:`, { '.name': name });
+          return { '.name': name };
+        }
+      }];
+    },
+    getTypedEndpoint(type) {
+      return [{
+        endpoint: 'basicstation/config',
+        sectionFilter: (res) => {
+          let data = res;
+          if (res && res.data) data = res.data;
+          console.log(`[getTypedEndpoint] Type=${type} Input:`, data);
+
+          // Unwrap basicstation structure if wrapped again
+          if (data && data.basicstation) data = data.basicstation;
+          if (data && data.config) data = data.config;
+
+          if (Array.isArray(data)) {
+            const result = data.filter(s => s['.type'] === type);
+            console.log(`[getTypedEndpoint] Type=${type} Output:`, result);
+            return result;
+          }
+          console.log(`[getTypedEndpoint] Type=${type} Warning: Output not an array. Output: []`);
+          return [];
+        }
+      }];
     },
     debugLog(msg, val) {
       console.log(`DEBUG ${msg}:`, val);
@@ -419,14 +295,14 @@ export default {
         const rfconfRes = await this.$axios.get("/api/basicstation/rfconf");
         console.log("--- BASICSTATION RFCONF OPTIONS ---");
         console.log(JSON.stringify(rfconfRes, null, 2));
-        const rfconfData = rfconfRes.data || rfconfRes;
+        const rfconfData = rfconfRes.data.data || rfconfRes.data || rfconfRes;
         if (Array.isArray(rfconfData)) {
           this.rfConfOptions = rfconfData.map(s => [s['.name'], s['.name']]);
         }
         const rssitcompRes = await this.$axios.get("/api/basicstation/rssitcomp");
         console.log("--- BASICSTATION RSSITCOMP OPTIONS ---");
         console.log(JSON.stringify(rssitcompRes, null, 2));
-        const rssitcompData = rssitcompRes.data || rssitcompRes;
+        const rssitcompData = rssitcompRes.data.data || rssitcompRes.data || rssitcompRes;
         if (Array.isArray(rssitcompData)) {
           this.rssiTcompOptions = rssitcompData.map(s => [s['.name'], s['.name']]);
         }
@@ -511,11 +387,13 @@ export default {
             // Typed sections are under their own stype name
             let group = stype;
             if (stype === 'basicstation' || stype === 'config') {
-               if (sid === 'station' || sid === 'auth' || sid === 'sx130x') {
-                 group = sid;
-               } else {
-                 group = 'config';
-               }
+              if (sid === 'station' || sid === 'auth' || sid === 'sx130x') {
+                group = sid;
+              } else {
+                group = 'config';
+              }
+            } else if (['rfconf', 'rssitcomp', 'txlut'].includes(stype)) {
+              group = stype;
             }
 
             await this.$axios.post('/api/basicstation/actions/save_config', {
@@ -546,19 +424,22 @@ export default {
   padding: 10px;
   border-radius: 4px;
 }
+
 pre {
   white-space: pre-wrap;
   word-wrap: break-word;
   margin: 0;
 }
+
 .basicstation-tabs {
-    padding: 24px;
+  padding: 24px;
 }
-  .lorawan-build-tag {
-    padding: 8px 24px 0 24px;
-    font-size: 12px;
-    color: #666666;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
+
+.lorawan-build-tag {
+  padding: 8px 24px 0 24px;
+  font-size: 12px;
+  color: #666666;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 </style>

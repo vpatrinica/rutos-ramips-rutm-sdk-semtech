@@ -3,7 +3,7 @@ include $(TOPDIR)/rules.mk
 APP_TITLE:=VuCI UI Support for LoRaWAN BasicStation
 APP_NAME:=$(notdir ${CURDIR})
 CLOSED_GPL_INSTALL:=y
-PKG_RELEASE:=8
+PKG_RELEASE:=12
 
 ifeq (m, $(CONFIG_PACKAGE_$(APP_NAME)))
 	APP_TLT_NAME:=LoRaWAN BasicStation
