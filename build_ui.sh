@@ -34,7 +34,13 @@ EOF
 echo "Running dockerbuild clean..."
 ./scripts/dockerbuild make package/feeds/vuci/vuci-app-basicstation-ui/clean V=sc
 
-echo "Running dockerbuild compile..."
+echo "Running dockerbuild compile basicstation-ui..."
 ./scripts/dockerbuild make package/feeds/vuci/vuci-app-basicstation-ui/compile V=sc
+
+echo "Running dockerbuild clean basicstation-api..."
+./scripts/dockerbuild make package/feeds/vuci/vuci-app-basicstation-api/clean V=sc
+
+echo "Running dockerbuild compile basicstation-api..."
+./scripts/dockerbuild make package/feeds/vuci/vuci-app-basicstation-api/compile V=sc
 
 echo "Build complete!"

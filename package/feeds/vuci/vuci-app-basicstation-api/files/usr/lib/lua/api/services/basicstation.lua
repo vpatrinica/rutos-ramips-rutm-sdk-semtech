@@ -18,7 +18,7 @@ local function log(msg)
     os.execute(string.format("logger -t BASICSTATION '%s'", msg:gsub("'", "'\\''")))
 end
 
-log("BASICSTATION SERVICE LOADED v13")
+log("BASICSTATION SERVICE LOADED v14")
 
 -- Helper: Get all UCI configuration as an array of sections
 function BasicStation:get_all_config()
@@ -218,6 +218,12 @@ end
 function BasicStation:GET_TYPE_rssitcomp()
     log("GET_TYPE_rssitcomp")
     return self:ResponseOK(self:get_sections_by_type("rssitcomp"))
+end
+
+-- GET_TYPE_txlut: handles /api/basicstation/txlut
+function BasicStation:GET_TYPE_txlut()
+    log("GET_TYPE_txlut")
+    return self:ResponseOK(self:get_sections_by_type("txlut"))
 end
 
 -- GET_TYPE_log: handles /api/basicstation/log

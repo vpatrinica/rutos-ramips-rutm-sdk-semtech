@@ -1,18 +1,14 @@
 <template>
-  <vuci-form config="basicstation" custom-save @save="handleSave" v-slot="{ uciData }">
+  <vuci-form config="basicstation" @save="handleSave">
     <div class="lorawan-build-tag">
       {{ $t('LoRaWAN UI Build') }}: {{ buildVersion }} ({{ $t('Build') }} {{ buildNumber }})
-    </div>
-    <div style="padding: 20px; background: #eee; word-break: break-all;">
-      <strong>uciData Debug:</strong> {{ JSON.stringify(uciData) }}
     </div>
     <a-tabs :default-active-key="activeTab" class="basicstation-tabs">
       <a-tab-pane key="general" :tab="$t('General Settings')">
         <!-- Station Identity and Logging -->
 
-        <vuci-named-section name="station" :title="$t('Station Identity and Logging')"
-          :endpoints="getNamedEndpoint('station')" data-key="station" v-slot="{ s }" :uci-data="uciData">
-          <span style="display:none">{{ debugLog('Station S', s) }}</span>
+        <vuci-named-section name="station" :title="$t('Station Identity and Logging')" v-slot="{ s }"
+          :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="station">
           <vuci-form-item-input :uci-section="s" :label="$t('Interface for station ID generation')" name="idGenIf"
             required :help="$t('Station ID is derived from the MAC address of the chosen interface')" />
           <vuci-form-item-input :uci-section="s" :label="$t('Station ID')" name="stationid"
@@ -24,9 +20,8 @@
         </vuci-named-section>
 
         <!-- Authentication -->
-        <vuci-named-section name="auth" :title="$t('Authentication')" :endpoints="getNamedEndpoint('auth')"
-          data-key="auth" v-slot="{ s }" :uci-data="uciData">
-          <span style="display:none">{{ debugLog('Auth S (sample)', s) }}</span>
+        <vuci-named-section name="auth" :title="$t('Authentication')" v-slot="{ s }"
+          :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="auth">
           <vuci-form-item-select :uci-section="s" :label="$t('Credentials')" name="cred" :options="credOptions"
             :help="$t('Credentials for LNS (TC) or CUPS (CUPS)')" />
           <vuci-form-item-select :uci-section="s" :label="$t('Authentication mode')" name="mode" :options="modeOptions"
@@ -53,9 +48,8 @@
         </vuci-named-section>
 
         <!-- Radio Configuration -->
-        <vuci-named-section name="sx130x" :title="$t('Radio Configuration')" :endpoints="getNamedEndpoint('sx130x')"
-          data-key="sx130x" v-slot="{ s }" :uci-data="uciData">
-          <span style="display:none">{{ debugLog('SX130x S (sample)', s) }}</span>
+        <vuci-named-section name="sx130x" :title="$t('Radio Configuration')" v-slot="{ s }"
+          :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="sx130x">
           <vuci-form-item-select :uci-section="s" :label="$t('Communication interface')" name="comif"
             :options="[['usb', 'USB']]" :help="$t('Currently only USB devices are supported')" />
           <vuci-form-item-input :uci-section="s" :label="$t('Device path')" name="devpath" required
@@ -75,8 +69,8 @@
 
       <a-tab-pane key="advanced" :tab="$t('Advanced Settings')">
         <!-- RF Configuration -->
-        <vuci-typed-section type="rfconf" :title="$t('RF Configuration')" :columns="rfConfColumns" data-key="rfconf"
-          :endpoints="getTypedEndpoint('rfconf')" :uci-data="uciData">
+        <vuci-typed-section type="rfconf" :title="$t('RF Configuration')" :columns="rfConfColumns"
+          :endpoints="[{ endpoint: 'basicstation/rfconf' }]" data-key="rfconf">
           <template #type="{ s }">
             <vuci-form-item-select :uci-section="s" name="type" :options="[['SX1250', 'SX1250']]" />
           </template>
@@ -98,8 +92,8 @@
         </vuci-typed-section>
 
         <!-- RSSI Tcomp -->
-        <vuci-typed-section type="rssitcomp" :title="$t('RSSI Tcomp')" :columns="rssiTcompColumns" data-key="rssitcomp"
-          :endpoints="getTypedEndpoint('rssitcomp')" addremove :uci-data="uciData">
+        <vuci-typed-section type="rssitcomp" :title="$t('RSSI Tcomp')" :columns="rssiTcompColumns"
+          :endpoints="[{ endpoint: 'basicstation/rssitcomp' }]" data-key="rssitcomp" addremove>
           <template #coeff_a="{ s }">
             <vuci-form-item-input :uci-section="s" name="coeff_a" />
           </template>
@@ -118,8 +112,8 @@
         </vuci-typed-section>
 
         <!-- TX Gain Lookup Table -->
-        <vuci-typed-section type="txlut" :title="$t('TX Gain Lookup Table')" :columns="txLutColumns" data-key="txlut"
-          :endpoints="getTypedEndpoint('txlut')" addremove :uci-data="uciData">
+        <vuci-typed-section type="txlut" :title="$t('TX Gain Lookup Table')" :columns="txLutColumns"
+          :endpoints="[{ endpoint: 'basicstation/txlut' }]" data-key="txlut" addremove>
           <template #rfPower="{ s }">
             <vuci-form-item-input :uci-section="s" name="rfPower" />
           </template>
@@ -242,69 +236,24 @@ export default {
     }
   },
   methods: {
-    getNamedEndpoint(name) {
-      return [{
-        endpoint: 'basicstation/config',
-        sectionFilter: (res) => {
-          let data = res;
-          if (res && res.data) data = res.data;
-          console.log(`[getNamedEndpoint] Name=${name} Input:`, data);
 
-          // Unwrap basicstation structure if wrapped again
-          if (data && data.basicstation) data = data.basicstation;
-          if (data && data.config) data = data.config;
-
-          if (Array.isArray(data)) {
-            const result = data.find(s => s['.name'] === name) || { '.name': name };
-            console.log(`[getNamedEndpoint] Name=${name} Output:`, result);
-            return result;
-          }
-          console.log(`[getNamedEndpoint] Name=${name} Warning: Output not an array. Output:`, { '.name': name });
-          return { '.name': name };
-        }
-      }];
-    },
-    getTypedEndpoint(type) {
-      return [{
-        endpoint: 'basicstation/config',
-        sectionFilter: (res) => {
-          let data = res;
-          if (res && res.data) data = res.data;
-          console.log(`[getTypedEndpoint] Type=${type} Input:`, data);
-
-          // Unwrap basicstation structure if wrapped again
-          if (data && data.basicstation) data = data.basicstation;
-          if (data && data.config) data = data.config;
-
-          if (Array.isArray(data)) {
-            const result = data.filter(s => s['.type'] === type);
-            console.log(`[getTypedEndpoint] Type=${type} Output:`, result);
-            return result;
-          }
-          console.log(`[getTypedEndpoint] Type=${type} Warning: Output not an array. Output: []`);
-          return [];
-        }
-      }];
-    },
-    debugLog(msg, val) {
-      console.log(`DEBUG ${msg}:`, val);
-      return true; // Return truthy to use in v-if
-    },
     async loadUciOptions() {
       try {
         const rfconfRes = await this.$axios.get("/api/basicstation/rfconf");
         console.log("--- BASICSTATION RFCONF OPTIONS ---");
         console.log(JSON.stringify(rfconfRes, null, 2));
         const rfconfData = rfconfRes.data.data || rfconfRes.data || rfconfRes;
-        if (Array.isArray(rfconfData)) {
-          this.rfConfOptions = rfconfData.map(s => [s['.name'], s['.name']]);
+        const rfArray = Array.isArray(rfconfData) ? rfconfData : Object.values(rfconfData || {});
+        if (rfArray.length > 0) {
+          this.rfConfOptions = rfArray.map(s => [s['.name'], s['.name']]);
         }
         const rssitcompRes = await this.$axios.get("/api/basicstation/rssitcomp");
         console.log("--- BASICSTATION RSSITCOMP OPTIONS ---");
         console.log(JSON.stringify(rssitcompRes, null, 2));
         const rssitcompData = rssitcompRes.data.data || rssitcompRes.data || rssitcompRes;
-        if (Array.isArray(rssitcompData)) {
-          this.rssiTcompOptions = rssitcompData.map(s => [s['.name'], s['.name']]);
+        const rssiArray = Array.isArray(rssitcompData) ? rssitcompData : Object.values(rssitcompData || {});
+        if (rssiArray.length > 0) {
+          this.rssiTcompOptions = rssiArray.map(s => [s['.name'], s['.name']]);
         }
       } catch (e) {
         console.error("Failed to load options from API", e);
