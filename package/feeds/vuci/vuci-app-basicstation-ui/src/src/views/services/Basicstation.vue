@@ -1,5 +1,5 @@
 <template>
-  <vuci-form config="basicstation" @save="handleSave">
+  <vuci-form config="basicstation" @save="handleSave" v-slot="{ uciData }">
     <div class="lorawan-build-tag">
       {{ $t('LoRaWAN UI Build') }}: {{ buildVersion }} ({{ $t('Build') }} {{ buildNumber }})
     </div>
@@ -8,7 +8,7 @@
         <!-- Station Identity and Logging -->
 
         <vuci-named-section name="station" :title="$t('Station Identity and Logging')" v-slot="{ s }"
-          :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="station">
+          :uci-data="uciData" :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="station">
           <vuci-form-item-input :uci-section="s" :label="$t('Interface for station ID generation')" name="idGenIf"
             required :help="$t('Station ID is derived from the MAC address of the chosen interface')" />
           <vuci-form-item-input :uci-section="s" :label="$t('Station ID')" name="stationid"
@@ -21,7 +21,7 @@
 
         <!-- Authentication -->
         <vuci-named-section name="auth" :title="$t('Authentication')" v-slot="{ s }"
-          :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="auth">
+          :uci-data="uciData" :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="auth">
           <vuci-form-item-select :uci-section="s" :label="$t('Credentials')" name="cred" :options="credOptions"
             :help="$t('Credentials for LNS (TC) or CUPS (CUPS)')" />
           <vuci-form-item-select :uci-section="s" :label="$t('Authentication mode')" name="mode" :options="modeOptions"
@@ -49,7 +49,7 @@
 
         <!-- Radio Configuration -->
         <vuci-named-section name="sx130x" :title="$t('Radio Configuration')" v-slot="{ s }"
-          :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="sx130x">
+          :uci-data="uciData" :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="sx130x">
           <vuci-form-item-select :uci-section="s" :label="$t('Communication interface')" name="comif"
             :options="[['usb', 'USB']]" :help="$t('Currently only USB devices are supported')" />
           <vuci-form-item-input :uci-section="s" :label="$t('Device path')" name="devpath" required
@@ -70,7 +70,7 @@
       <a-tab-pane key="advanced" :tab="$t('Advanced Settings')">
         <!-- RF Configuration -->
         <vuci-typed-section type="rfconf" :title="$t('RF Configuration')" :columns="rfConfColumns"
-          :endpoints="[{ endpoint: 'basicstation/rfconf' }]" data-key="rfconf">
+          :uci-data="uciData" :endpoints="[{ endpoint: 'basicstation/rfconf' }]" data-key="rfconf">
           <template #type="{ s }">
             <vuci-form-item-select :uci-section="s" name="type" :options="[['SX1250', 'SX1250']]" />
           </template>
@@ -93,7 +93,7 @@
 
         <!-- RSSI Tcomp -->
         <vuci-typed-section type="rssitcomp" :title="$t('RSSI Tcomp')" :columns="rssiTcompColumns"
-          :endpoints="[{ endpoint: 'basicstation/rssitcomp' }]" data-key="rssitcomp" addremove>
+          :uci-data="uciData" :endpoints="[{ endpoint: 'basicstation/rssitcomp' }]" data-key="rssitcomp" addremove>
           <template #coeff_a="{ s }">
             <vuci-form-item-input :uci-section="s" name="coeff_a" />
           </template>
@@ -113,7 +113,7 @@
 
         <!-- TX Gain Lookup Table -->
         <vuci-typed-section type="txlut" :title="$t('TX Gain Lookup Table')" :columns="txLutColumns"
-          :endpoints="[{ endpoint: 'basicstation/txlut' }]" data-key="txlut" addremove>
+          :uci-data="uciData" :endpoints="[{ endpoint: 'basicstation/txlut' }]" data-key="txlut" addremove>
           <template #rfPower="{ s }">
             <vuci-form-item-input :uci-section="s" name="rfPower" />
           </template>
