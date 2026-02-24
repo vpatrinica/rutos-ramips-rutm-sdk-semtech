@@ -18,7 +18,7 @@ local function log(msg)
     os.execute(string.format("logger -t BASICSTATION '%s'", msg:gsub("'", "'\\''")))
 end
 
-log("BASICSTATION SERVICE LOADED v14")
+log("BASICSTATION SERVICE LOADED v17")
 
 -- Helper: Get all UCI configuration as an array of sections
 function BasicStation:get_all_config()
@@ -66,18 +66,42 @@ end
 -- Action-based save to bypass potential PUT restrictions in BasicService bytecode
 function BasicStation:POST_action_save_config(data)
     log("Action save_config called")
-    
-    -- VUCI Action data can be in data or data.data depending on axios config
-    local group = data.service_group or (data.data and data.data.service_group)
-    local sid = data.sid or (data.data and data.data.sid)
-    local payload = data.data and data.data.data or data.data or data
-    
-    if not group or type(payload) ~= "table" then
-        log("Invalid action payload: group=" .. tostring(group))
-        return self:Response(400, { success = false, error = "Missing group or data payload" })
+    log("Action save_config raw data keys: " .. (function()
+        if type(data) ~= "table" then return tostring(data) end
+        local keys = {} for k in pairs(data) do table.insert(keys, tostring(k)) end
+        return table.concat(keys, ", ")
+    end)())
+
+    -- Accept both frontend format (section/data) and framework format (service_group/sid)
+    local group = data.section or data.service_group
+                  or (data.data and (data.data.section or data.data.service_group))
+    local sid   = data.sid or (data.data and data.data.sid)
+    local payload = data.data or data
+
+    -- If group came from 'section' field (named sections like station/auth/sx130x),
+    -- treat it as both the group and the sid
+    if group and not sid then
+        sid = group
     end
-    
-    return self:handle_uci_save(group, sid, payload)
+
+    -- For named sections (station, auth, sx130x), group is "config"
+    local named_sections = { station = true, auth = true, sx130x = true }
+    local effective_group = named_sections[group] and "config" or (group or "config")
+
+    log(string.format("Action save_config: group=%s, effective_group=%s, sid=%s",
+        tostring(group), tostring(effective_group), tostring(sid)))
+
+    if type(payload) ~= "table" then
+        log("Invalid action payload: payload is not a table")
+        return self:Response(400, { success = false, error = "Missing data payload" })
+    end
+
+    -- Remove wrapper keys that aren't UCI options
+    payload.section = nil
+    payload.service_group = nil
+    payload.sid = nil
+
+    return self:handle_uci_save(effective_group, sid, payload)
 end
 
 function BasicStation:handle_uci_save(group, sid, data)
@@ -202,8 +226,9 @@ end
 
 function BasicStation:POST(params, data)
     log("BasicStation:POST called")
-    
-    if type(params) == "table" and params.service_group == "actions" then
+    log("POST params: " .. tostring(params))
+
+    if type(params) == "table" and (params.service_group == "action" or params.service_group == "actions") then
         local action = params.sid
         log("Action detected: " .. tostring(action))
         if action == "save_config" then

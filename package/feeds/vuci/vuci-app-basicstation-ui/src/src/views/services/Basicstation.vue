@@ -1,5 +1,5 @@
 <template>
-  <vuci-form config="basicstation" custom-save @save="handleSave" v-slot="{ uciData }">
+  <vuci-form config="basicstation" :before-save="handleSave" ref="bsForm" v-slot="{ uciData }">
     <div class="lorawan-build-tag">
       {{ $t('LoRaWAN UI Build') }}: {{ buildVersion }} ({{ $t('Build') }} {{ buildNumber }})
     </div>
@@ -7,7 +7,8 @@
       <a-tab-pane key="general" :tab="$t('General Settings')">
         <!-- Station Identity and Logging -->
         <vuci-named-section name="station" :title="$t('Station Identity and Logging')" v-slot="{ s }"
-          :uci-data="uciData" :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="station">
+          :uci-data="uciData" :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="station"
+          :form-methods="['get']">
           <vuci-form-item-input :uci-section="s" :label="$t('Interface for station ID generation')" name="idGenIf"
             required :help="$t('Station ID is derived from the MAC address of the chosen interface')" />
           <vuci-form-item-input :uci-section="s" :label="$t('Station ID')" name="stationid"
@@ -20,7 +21,7 @@
 
         <!-- Authentication -->
         <vuci-named-section name="auth" :title="$t('Authentication')" v-slot="{ s }" :uci-data="uciData"
-          :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="auth">
+          :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="auth" :form-methods="['get']">
           <vuci-form-item-select :uci-section="s" :label="$t('Credentials')" name="cred" :options="credOptions"
             :help="$t('Credentials for LNS (TC) or CUPS (CUPS)')" />
           <vuci-form-item-select :uci-section="s" :label="$t('Authentication mode')" name="mode" :options="modeOptions"
@@ -48,7 +49,7 @@
 
         <!-- Radio Configuration -->
         <vuci-named-section name="sx130x" :title="$t('Radio Configuration')" v-slot="{ s }" :uci-data="uciData"
-          :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="sx130x">
+          :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="sx130x" :form-methods="['get']">
           <vuci-form-item-select :uci-section="s" :label="$t('Communication interface')" name="comif"
             :options="[['usb', 'USB']]" :help="$t('Currently only USB devices are supported')" />
           <vuci-form-item-input :uci-section="s" :label="$t('Device path')" name="devpath" required
@@ -67,7 +68,7 @@
       <a-tab-pane key="advanced" :tab="$t('Advanced Settings')">
         <!-- RF Configuration -->
         <vuci-typed-section type="rfconf" :title="$t('RF Configuration')" :columns="rfConfColumns" :uci-data="uciData"
-          :endpoints="[{ endpoint: 'basicstation/rfconf' }]" data-key="rfconf">
+          :endpoints="[{ endpoint: 'basicstation/rfconf' }]" data-key="rfconf" :form-methods="['get']">
           <template #type="{ s }">
             <vuci-form-item-select :uci-section="s" name="type" :options="[['SX1250', 'SX1250']]" />
           </template>
@@ -90,7 +91,7 @@
 
         <!-- RSSI Tcomp -->
         <vuci-typed-section type="rssitcomp" :title="$t('RSSI Tcomp')" :columns="rssiTcompColumns" :uci-data="uciData"
-          :endpoints="[{ endpoint: 'basicstation/rssitcomp' }]" data-key="rssitcomp" addremove>
+          :endpoints="[{ endpoint: 'basicstation/rssitcomp' }]" data-key="rssitcomp" addremove :form-methods="['get']">
           <template #coeff_a="{ s }">
             <vuci-form-item-input :uci-section="s" name="coeff_a" />
           </template>
@@ -110,7 +111,7 @@
 
         <!-- TX Gain Lookup Table -->
         <vuci-typed-section type="txlut" :title="$t('TX Gain Lookup Table')" :columns="txLutColumns" :uci-data="uciData"
-          :endpoints="[{ endpoint: 'basicstation/txlut' }]" data-key="txlut" addremove>
+          :endpoints="[{ endpoint: 'basicstation/txlut' }]" data-key="txlut" addremove :form-methods="['get']">
           <template #rfPower="{ s }">
             <vuci-form-item-input :uci-section="s" name="rfPower" />
           </template>
@@ -222,6 +223,37 @@ export default {
   destroyed() {
     this.stopRefresh();
   },
+  mounted() {
+    // Register a no-op saveable section so the Save & Apply button is visible.
+    // Real sections use form-methods=['get'] to prevent framework PUT calls.
+    // Our beforeSave hook does the actual saving via direct fetch().
+    this.$nextTick(() => {
+      const form = this.$refs.bsForm;
+      if (form) {
+        form.vuciSections['basicstation_custom_save'] = {
+          saveable: true,
+          visible: true,
+          callMethod: {
+            edit: () => Promise.resolve({ data: {} }),
+            get: () => Promise.resolve({ data: {} }),
+            create: () => Promise.resolve({ promises: Promise.resolve(), createdSectionsNames: [] }),
+            delete: () => Promise.resolve()
+          },
+          validate: () => true,
+          updateAfterSave: () => { },
+          isEditing: () => false,
+          invalidInputs: [],
+          dataKey: '_custom',
+          formMethods: ['edit'],
+          getSavedData: () => ({}),
+          handleError: () => { },
+          checkEditModalOpening: () => { },
+          awaitNetwork: false,
+          load: () => { }
+        };
+      }
+    });
+  },
   watch: {
     autoRefresh(val) {
       if (val) {
@@ -232,61 +264,97 @@ export default {
     }
   },
   methods: {
-    async handleSave(uciData) {
-      console.log("--- handleSave called ---");
-      console.log("uciData:", JSON.stringify(uciData, null, 2));
+    async handleSave() {
+      console.log("--- handleSave (beforeSave hook) called ---");
+      const uciData = this.$refs.bsForm && this.$refs.bsForm.uciData;
+      console.log("uciData keys:", uciData ? Object.keys(uciData) : "null");
+
+      if (!uciData || typeof uciData !== 'object') {
+        console.warn("handleSave: uciData is empty");
+        return true;
+      }
+
+      // Helper: strip internal VUCI props from a section object
+      const stripMeta = (obj) => {
+        const out = {};
+        for (const [k, v] of Object.entries(obj)) {
+          if (k.startsWith('.') || k === 'id') continue;
+          out[k] = v;
+        }
+        return out;
+      };
+
+      // Helper: direct POST via fetch(), bypassing VUCI Ce.bulk
+      const postDirect = async (url, body) => {
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-PROTECTION": "1"
+          },
+          credentials: "same-origin",
+          body: JSON.stringify(body)
+        });
+        const result = await resp.json().catch(() => ({}));
+        console.log(`POST ${url} → ${resp.status}`, result);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${JSON.stringify(result)}`);
+        return result;
+      };
+
+      // Helper: find a specific section item by .name from a data-key array
+      const findByName = (dataKey, name) => {
+        const arr = uciData[dataKey];
+        if (!arr) return null;
+        const list = Array.isArray(arr) ? arr : [arr];
+        return list.find(item => item['.name'] === name || item['id'] === name) || null;
+      };
+
+      // Helper: get all items of a specific .type from a data-key array
+      const findAllOfType = (dataKey) => {
+        const arr = uciData[dataKey];
+        if (!arr) return [];
+        return Array.isArray(arr) ? arr : [arr];
+      };
+
       try {
-        // Collect all section data from uciData and POST each to the backend
-        const sections = ['station', 'auth', 'sx130x'];
-        for (const sectionName of sections) {
-          const sectionData = uciData[sectionName];
-          if (sectionData) {
-            // sectionData can be an array or single object
-            const items = Array.isArray(sectionData) ? sectionData : [sectionData];
-            for (const item of items) {
-              const payload = { ...item };
-              // Remove internal props that shouldn't be sent
-              delete payload['.name'];
-              delete payload['.type'];
-              delete payload['.index'];
-              delete payload['.anonymous'];
-              delete payload['id'];
-              console.log(`Saving section ${sectionName}:`, JSON.stringify(payload));
-              await this.$axios.post("/api/basicstation/action/save_config", {
-                section: sectionName,
-                data: payload
-              });
-            }
+        // 1. Named sections — each has a known .name matching the section name
+        const namedSections = ['station', 'auth', 'sx130x'];
+        for (const sid of namedSections) {
+          const item = findByName('station', sid) || findByName(sid, sid);
+          if (!item) {
+            console.warn(`Section "${sid}" not found in uciData`);
+            continue;
           }
+          const payload = stripMeta(item);
+          console.log(`UCI save ${sid}:`, JSON.stringify(payload));
+          await postDirect("/api/basicstation/action/save_config", {
+            section: sid,
+            data: payload
+          });
         }
 
-        // Save typed sections (rfconf, rssitcomp, txlut)
-        const typedSections = ['rfconf', 'rssitcomp', 'txlut'];
-        for (const typeName of typedSections) {
-          const sectionData = uciData[typeName];
-          if (sectionData && Array.isArray(sectionData)) {
-            for (const item of sectionData) {
-              const sid = item['.name'] || item['id'];
-              const payload = { ...item };
-              delete payload['.name'];
-              delete payload['.type'];
-              delete payload['.index'];
-              delete payload['.anonymous'];
-              delete payload['id'];
-              console.log(`Saving typed section ${typeName}/${sid}:`, JSON.stringify(payload));
-              await this.$axios.post("/api/basicstation/action/save_config", {
-                section: sid,
-                data: payload
-              });
-            }
+        // 2. Typed sections — rfconf, rssitcomp, txlut
+        const typedKeys = ['rfconf', 'rssitcomp', 'txlut'];
+        for (const typeKey of typedKeys) {
+          const items = findAllOfType(typeKey);
+          for (const item of items) {
+            const sid = item['.name'] || item['id'];
+            if (!sid) continue;
+            const payload = stripMeta(item);
+            console.log(`UCI save ${typeKey}/${sid}:`, JSON.stringify(payload));
+            await postDirect("/api/basicstation/action/save_config", {
+              section: sid,
+              data: payload
+            });
           }
         }
 
         this.$message.success(this.$t("Configuration saved successfully"));
       } catch (e) {
         console.error("Save failed:", e);
-        this.$message.error(this.$t("Failed to save configuration"));
+        this.$message.error(this.$t("Failed to save configuration: " + e.message));
       }
+      return true;
     },
 
     async loadUciOptions() {
