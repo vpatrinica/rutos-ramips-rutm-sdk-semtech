@@ -127,6 +127,10 @@ function BasicStation:handle_uci_save(group, sid, data)
 end
 
 -- Low-level PUT override to fix 500 Internal Server Errors from the framework
+function BasicStation:PUT_TYPE_config(params, data)
+    return self:PUT(params, data)
+end
+
 function BasicStation:PUT(params, data)
     log("BasicStation:PUT called (low-level)")
     log("PUT params: " .. tostring(params))
@@ -152,9 +156,28 @@ function BasicStation:PUT(params, data)
     end
 
     if type(payload) == "table" then
-        local keys = {}
-        for k in pairs(payload) do table.insert(keys, k) end
-        log("PUT payload: table with keys: " .. table.concat(keys, ", "))
+        -- Check if it's an array of objects
+        if payload[1] and type(payload[1]) == "table" then
+            log("PUT payload: array of tables detected, iterating handles")
+            local has_error = false
+            for _, section_payload in ipairs(payload) do
+                local section_sid = section_payload[".name"] or section_payload["name"] or sid
+                local res = self:handle_uci_save(group, section_sid, section_payload)
+                if type(res) == "table" and res.status ~= 200 then
+                    has_error = true
+                end
+            end
+            if has_error then
+                return self:Response(500, { success = false, error = "Partial commit failures occurred" })
+            else
+                return self:ResponseOK({ success = true })
+            end
+        else
+            local keys = {}
+            for k in pairs(payload) do table.insert(keys, k) end
+            log("PUT payload: table with keys: " .. table.concat(keys, ", "))
+            return self:handle_uci_save(group, sid, payload)
+        end
     elseif type(payload) == "string" then
         log("PUT payload is string, attempting JSON decode: " .. payload:sub(1, 200))
         local ok, decoded = pcall(function()
@@ -162,10 +185,11 @@ function BasicStation:PUT(params, data)
             return json.decode(payload)
         end)
         if ok and type(decoded) == "table" then
-            payload = decoded
+            -- Note: For simplicity, assume string decodes are objects not arrays
             local keys = {}
-            for k in pairs(payload) do table.insert(keys, k) end
+            for k in pairs(decoded) do table.insert(keys, k) end
             log("PUT JSON decoded, keys: " .. table.concat(keys, ", "))
+            return self:handle_uci_save(group, sid, decoded)
         else
             log("PUT Error: Failed to decode JSON string")
             return self:Response(400, { success = false, error = "Invalid data payload: not a table or valid JSON" })
@@ -174,8 +198,6 @@ function BasicStation:PUT(params, data)
         log("PUT Error: Payload is an unsupported type")
         return self:Response(400, { success = false, error = "Invalid data payload type" })
     end
-
-    return self:handle_uci_save(group, sid, payload)
 end
 
 function BasicStation:POST(params, data)
@@ -208,10 +230,51 @@ function BasicStation:DELETE(params)
     return self:Response(500, { success = false, error = "Failed to delete section" })
 end
 
+-- GET_TYPE_station: handles /api/basicstation/config/station
+function BasicStation:GET_TYPE_station()
+    log("GET_TYPE_station")
+    local items = self:get_sections_by_type("station")
+    return self:ResponseOK(items and #items > 0 and items[1] or {})
+end
+
+function BasicStation:PUT_TYPE_station(params, data)
+    if type(params) == "table" then params.service_group = "station" else params = { service_group = "station" } end
+    return self:PUT(params, data)
+end
+
+-- GET_TYPE_auth: handles /api/basicstation/config/auth
+function BasicStation:GET_TYPE_auth()
+    log("GET_TYPE_auth")
+    local items = self:get_sections_by_type("auth")
+    return self:ResponseOK(items and #items > 0 and items[1] or {})
+end
+
+function BasicStation:PUT_TYPE_auth(params, data)
+    if type(params) == "table" then params.service_group = "auth" else params = { service_group = "auth" } end
+    return self:PUT(params, data)
+end
+
+-- GET_TYPE_sx130x: handles /api/basicstation/config/sx130x
+function BasicStation:GET_TYPE_sx130x()
+    log("GET_TYPE_sx130x")
+    local items = self:get_sections_by_type("sx130x")
+    return self:ResponseOK(items and #items > 0 and items[1] or {})
+end
+
+function BasicStation:PUT_TYPE_sx130x(params, data)
+    if type(params) == "table" then params.service_group = "sx130x" else params = { service_group = "sx130x" } end
+    return self:PUT(params, data)
+end
+
 -- GET_TYPE_rfconf: handles /api/basicstation/config/rfconf
 function BasicStation:GET_TYPE_rfconf()
     log("GET_TYPE_rfconf")
     return self:ResponseOK(self:get_sections_by_type("rfconf"))
+end
+
+function BasicStation:PUT_TYPE_rfconf(params, data)
+    if type(params) == "table" then params.service_group = "rfconf" else params = { service_group = "rfconf" } end
+    return self:PUT(params, data)
 end
 
 -- GET_TYPE_rssitcomp: handles /api/basicstation/config/rssitcomp
@@ -220,10 +283,20 @@ function BasicStation:GET_TYPE_rssitcomp()
     return self:ResponseOK(self:get_sections_by_type("rssitcomp"))
 end
 
+function BasicStation:PUT_TYPE_rssitcomp(params, data)
+    if type(params) == "table" then params.service_group = "rssitcomp" else params = { service_group = "rssitcomp" } end
+    return self:PUT(params, data)
+end
+
 -- GET_TYPE_txlut: handles /api/basicstation/txlut
 function BasicStation:GET_TYPE_txlut()
     log("GET_TYPE_txlut")
     return self:ResponseOK(self:get_sections_by_type("txlut"))
+end
+
+function BasicStation:PUT_TYPE_txlut(params, data)
+    if type(params) == "table" then params.service_group = "txlut" else params = { service_group = "txlut" } end
+    return self:PUT(params, data)
 end
 
 -- GET_TYPE_log: handles /api/basicstation/log

@@ -1,12 +1,11 @@
 <template>
-  <vuci-form config="basicstation" @save="handleSave" v-slot="{ uciData }">
+  <vuci-form config="basicstation" custom-save @save="handleSave" v-slot="{ uciData }">
     <div class="lorawan-build-tag">
       {{ $t('LoRaWAN UI Build') }}: {{ buildVersion }} ({{ $t('Build') }} {{ buildNumber }})
     </div>
     <a-tabs :default-active-key="activeTab" class="basicstation-tabs">
       <a-tab-pane key="general" :tab="$t('General Settings')">
         <!-- Station Identity and Logging -->
-
         <vuci-named-section name="station" :title="$t('Station Identity and Logging')" v-slot="{ s }"
           :uci-data="uciData" :endpoints="[{ endpoint: 'basicstation/config' }]" data-key="station">
           <vuci-form-item-input :uci-section="s" :label="$t('Interface for station ID generation')" name="idGenIf"
@@ -63,14 +62,12 @@
           <vuci-form-item-select :uci-section="s" :label="$t('Radio 0')" name="radio0" :options="rfConfOptions" />
           <vuci-form-item-select :uci-section="s" :label="$t('Radio 1')" name="radio1" :options="rfConfOptions" />
         </vuci-named-section>
-
-
       </a-tab-pane>
 
       <a-tab-pane key="advanced" :tab="$t('Advanced Settings')">
         <!-- RF Configuration -->
         <vuci-typed-section type="rfconf" :title="$t('RF Configuration')" :columns="rfConfColumns" :uci-data="uciData"
-          :endpoints="[{ endpoint: 'basicstation/config/rfconf' }]" data-key="rfconf">
+          :endpoints="[{ endpoint: 'basicstation/rfconf' }]" data-key="rfconf">
           <template #type="{ s }">
             <vuci-form-item-select :uci-section="s" name="type" :options="[['SX1250', 'SX1250']]" />
           </template>
@@ -93,7 +90,7 @@
 
         <!-- RSSI Tcomp -->
         <vuci-typed-section type="rssitcomp" :title="$t('RSSI Tcomp')" :columns="rssiTcompColumns" :uci-data="uciData"
-          :endpoints="[{ endpoint: 'basicstation/config/rssitcomp' }]" data-key="rssitcomp" addremove>
+          :endpoints="[{ endpoint: 'basicstation/rssitcomp' }]" data-key="rssitcomp" addremove>
           <template #coeff_a="{ s }">
             <vuci-form-item-input :uci-section="s" name="coeff_a" />
           </template>
@@ -113,7 +110,7 @@
 
         <!-- TX Gain Lookup Table -->
         <vuci-typed-section type="txlut" :title="$t('TX Gain Lookup Table')" :columns="txLutColumns" :uci-data="uciData"
-          :endpoints="[{ endpoint: 'basicstation/config/txlut' }]" data-key="txlut" addremove>
+          :endpoints="[{ endpoint: 'basicstation/txlut' }]" data-key="txlut" addremove>
           <template #rfPower="{ s }">
             <vuci-form-item-input :uci-section="s" name="rfPower" />
           </template>
@@ -218,7 +215,6 @@ export default {
     };
   },
   async created() {
-    await this.logAllUci();
     await this.loadUciOptions();
     await this.fetchLogs();
     await this.fetchStatus();
@@ -236,6 +232,62 @@ export default {
     }
   },
   methods: {
+    async handleSave(uciData) {
+      console.log("--- handleSave called ---");
+      console.log("uciData:", JSON.stringify(uciData, null, 2));
+      try {
+        // Collect all section data from uciData and POST each to the backend
+        const sections = ['station', 'auth', 'sx130x'];
+        for (const sectionName of sections) {
+          const sectionData = uciData[sectionName];
+          if (sectionData) {
+            // sectionData can be an array or single object
+            const items = Array.isArray(sectionData) ? sectionData : [sectionData];
+            for (const item of items) {
+              const payload = { ...item };
+              // Remove internal props that shouldn't be sent
+              delete payload['.name'];
+              delete payload['.type'];
+              delete payload['.index'];
+              delete payload['.anonymous'];
+              delete payload['id'];
+              console.log(`Saving section ${sectionName}:`, JSON.stringify(payload));
+              await this.$axios.post("/api/basicstation/action/save_config", {
+                section: sectionName,
+                data: payload
+              });
+            }
+          }
+        }
+
+        // Save typed sections (rfconf, rssitcomp, txlut)
+        const typedSections = ['rfconf', 'rssitcomp', 'txlut'];
+        for (const typeName of typedSections) {
+          const sectionData = uciData[typeName];
+          if (sectionData && Array.isArray(sectionData)) {
+            for (const item of sectionData) {
+              const sid = item['.name'] || item['id'];
+              const payload = { ...item };
+              delete payload['.name'];
+              delete payload['.type'];
+              delete payload['.index'];
+              delete payload['.anonymous'];
+              delete payload['id'];
+              console.log(`Saving typed section ${typeName}/${sid}:`, JSON.stringify(payload));
+              await this.$axios.post("/api/basicstation/action/save_config", {
+                section: sid,
+                data: payload
+              });
+            }
+          }
+        }
+
+        this.$message.success(this.$t("Configuration saved successfully"));
+      } catch (e) {
+        console.error("Save failed:", e);
+        this.$message.error(this.$t("Failed to save configuration"));
+      }
+    },
 
     async loadUciOptions() {
       try {
@@ -287,8 +339,6 @@ export default {
     async fetchStatus() {
       try {
         const response = await this.$axios.get("/api/basicstation/status");
-        console.log("--- BASICSTATION STATUS ---");
-        console.log(JSON.stringify(response, null, 2));
         const body = response.data || response;
         this.serviceRunning = !!body.running;
       } catch (e) {
@@ -307,58 +357,10 @@ export default {
         this.refreshTimer = null;
       }
     },
-    async logAllUci() {
-      try {
-        const config = await this.$axios.get("/api/basicstation/config");
-        console.log("--- START BASICSTATION UCI DATA ---");
-        console.log(JSON.stringify(config, null, 2));
-        console.log("--- END BASICSTATION UCI DATA ---");
-      } catch (e) {
-        console.error("Failed to fetch all UCI data for logging", e);
-      }
-    },
     scrollToBottom() {
       const container = this.$refs.logContainer;
       if (container) {
         container.scrollTop = container.scrollHeight;
-      }
-    },
-    async handleSave(uciData) {
-      this.$spin(this.$t('Saving configuration...'));
-      try {
-        // Iterate through all sections in uciData and save them via action
-        for (const stype in uciData) {
-          const sections = uciData[stype];
-          for (const sid in sections) {
-            const data = sections[sid];
-            // Determine service group for the API call
-            // Named sections in vuci-form are usually under stype='config'
-            // Typed sections are under their own stype name
-            let group = stype;
-            if (stype === 'basicstation' || stype === 'config') {
-              if (sid === 'station' || sid === 'auth' || sid === 'sx130x') {
-                group = sid;
-              } else {
-                group = 'config';
-              }
-            } else if (['rfconf', 'rssitcomp', 'txlut'].includes(stype)) {
-              group = stype;
-            }
-
-            await this.$axios.post('/api/basicstation/actions/save_config', {
-              data: {
-                service_group: group,
-                sid: sid,
-                data: data
-              }
-            });
-          }
-        }
-        this.$message.success(this.$t('Configuration saved successfully'));
-      } catch (e) {
-        this.$message.error(this.$t('Failed to save configuration'));
-      } finally {
-        this.$spin(false);
       }
     }
   },
