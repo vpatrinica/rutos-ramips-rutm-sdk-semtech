@@ -18,7 +18,7 @@ local function log(msg)
     os.execute(string.format("logger -t BASICSTATION '%s'", msg:gsub("'", "'\\''")))
 end
 
-log("BASICSTATION SERVICE LOADED v17")
+log("BASICSTATION SERVICE LOADED v20")
 
 -- Helper: Get all UCI configuration as an array of sections
 function BasicStation:get_all_config()
@@ -131,23 +131,30 @@ function BasicStation:handle_uci_save(group, sid, data)
 
     for k, v in pairs(data) do
         if type(k) == "string" and k:sub(1,1) ~= "." and k ~= "id" then
-            if type(v) == "table" then
-                u:set_list(config, section_name, k, v)
-            elseif type(v) == "boolean" then
-                u:set(config, section_name, k, v and "1" or "0")
-            else
-                u:set(config, section_name, k, tostring(v))
+            local ok, err = pcall(function()
+                if type(v) == "table" then
+                    -- UCI set() accepts tables for list-type options
+                    u:set(config, section_name, k, v)
+                elseif type(v) == "boolean" then
+                    u:set(config, section_name, k, v and "1" or "0")
+                else
+                    u:set(config, section_name, k, tostring(v))
+                end
+            end)
+            if not ok then
+                log(string.format("UCI set error for %s.%s.%s: %s", config, section_name, k, tostring(err)))
             end
         end
     end
 
-    if u:commit(config) then
+    local commit_ok, commit_err = pcall(function() u:commit(config) end)
+    if commit_ok then
         log("UCI commit successful for " .. tostring(section_name))
         return self:ResponseOK({ success = true, data = { sid = section_name } })
     end
 
-    log("UCI commit failed for " .. config)
-    return self:Response(500, { success = false, error = "UCI commit failed" })
+    log("UCI commit failed for " .. config .. ": " .. tostring(commit_err))
+    return self:Response(500, { success = false, error = "UCI commit failed: " .. tostring(commit_err) })
 end
 
 -- Low-level PUT override to fix 500 Internal Server Errors from the framework
@@ -225,19 +232,52 @@ function BasicStation:PUT(params, data)
 end
 
 function BasicStation:POST(params, data)
-    log("BasicStation:POST called")
-    log("POST params: " .. tostring(params))
+    log("BasicStation:POST called (v20)")
 
-    if type(params) == "table" and (params.service_group == "action" or params.service_group == "actions") then
-        local action = params.sid
-        log("Action detected: " .. tostring(action))
-        if action == "save_config" then
-            return self:POST_action_save_config(data)
+    -- The VUCI dispatcher stores the parsed HTTP body in self.arguments
+    local args = self.arguments
+    log("POST self.arguments type: " .. type(args))
+
+    -- Dump self keys for diagnostics (first time only)
+    local self_keys = {}
+    for k, v in pairs(self) do
+        table.insert(self_keys, k .. "=" .. type(v))
+    end
+    log("POST self keys: " .. table.concat(self_keys, ", "))
+
+    -- Try to get data from self.arguments or self.arguments.data
+    local body = nil
+    if type(args) == "table" then
+        local args_keys = {}
+        for k in pairs(args) do table.insert(args_keys, tostring(k)) end
+        log("POST arguments keys: " .. table.concat(args_keys, ", "))
+
+        -- The body could be in args directly or in args.data
+        if args.section and args.data then
+            body = args
+        elseif args.data and type(args.data) == "table" then
+            body = args.data
         end
     end
 
-    return self:PUT(params, data)
+    -- Also try params and data arguments directly
+    if not body then
+        if type(data) == "table" and data.section then
+            body = data
+        elseif type(params) == "table" and params.section then
+            body = params
+        end
+    end
+
+    if body and body.section and body.data then
+        log("POST dispatching to save_config, section=" .. tostring(body.section))
+        return self:POST_action_save_config(body)
+    end
+
+    log("POST: no actionable body found, returning OK")
+    return self:ResponseOK({ success = true, ignored = true })
 end
+
 
 function BasicStation:DELETE(params)
     local sid = params and params.sid

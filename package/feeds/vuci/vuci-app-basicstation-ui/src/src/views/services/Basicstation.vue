@@ -17,6 +17,13 @@
             :options="logLevelOptions" />
           <vuci-form-item-input :uci-section="s" :label="$t('Log Size (MB)')" name="log_size" type="number" />
           <vuci-form-item-input :uci-section="s" :label="$t('Log Rotate')" name="log_rotate" type="number" />
+          <vuci-form-item-select :uci-section="s" :label="$t('PPS')" name="pps"
+            :options="[['fuzzy', 'Fuzzy'], ['gps', 'GPS'], ['', 'Disabled']]"
+            :help="$t('PPS (pulse per second) source for time synchronization')" />
+          <vuci-form-item-input :uci-section="s" :label="$t('GPS FIFO path')" name="gps" placeholder="/mnt/gps.fifo"
+            :help="$t('Path to the GPS NMEA FIFO used by the station for time/location')" />
+          <vuci-form-item-input :uci-section="s" :label="$t('Beacon Interval')" name="beacon_intvl" placeholder="128s"
+            :help="$t('Class B beacon broadcast interval (e.g. 128s)')" />
         </vuci-named-section>
 
         <!-- Authentication -->

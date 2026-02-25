@@ -255,6 +255,14 @@ start_service() {
 
 	process_config
 
+	# Start gps_bridge so the GPS FIFO exists before station reads it
+	local gps_path
+	config_load basicstation
+	config_get gps_path station gps
+	if [ -n "$gps_path" ]; then
+		/etc/init.d/gps_bridge start 2>/dev/null || true
+	fi
+
 	# Pre-create the log file as world-readable so the VUCI API (running
 	# as the unprivileged uhttpd user) can read it.  The station binary
 	# opens the file with O_APPEND and will continue writing to it.
@@ -274,4 +282,8 @@ start_service() {
 
 reload_service() {
 	restart "$@"
+}
+
+stop_service() {
+	/etc/init.d/gps_bridge stop 2>/dev/null || true
 }

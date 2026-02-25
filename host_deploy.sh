@@ -26,23 +26,22 @@ echo "--------------------------"
 echo "Creating bundle tarball..."
 
 
-# third argument controls which subset of packages to bundle. Default to "vuci" if not supplied.
-# Usage additions: ./host_deploy.sh [REMOTE_IP] [USER] [bundle_type]
-#
-# - "vuci" (default) will only pick the two VUCI BasicStation web UI packages
-# - "all" (or any other value) will grab every IPK matching our usual
-#   patterns.  The patterns themselves can be fine‑tuned later.
+# Bundle type controls which IPKs are packaged.
+#   vuci    – VUCI BasicStation web UI packages only
+#   station – VUCI + lora-basicstation
+#   all     – VUCI + lora-basicstation + python + deps
 
 BUNDLE_TYPE="${1:-vuci}"
 echo "Bundle type: ${BUNDLE_TYPE}"
 
 # decide which packages to copy based on the requested type
 if [ "${BUNDLE_TYPE}" = "vuci" ]; then
-    # only include the frontend/backend UI packages
     PATTERN="vuci-app-basicstation-(api|ui)"
+elif [ "${BUNDLE_TYPE}" = "station" ]; then
+    PATTERN="vuci-app-basicstation-(api|ui)|lora-basicstation"
 else
-    # everything related to BasicStation/LoRa/mbedtls/sx1302
-    PATTERN="basicstation|lora|mbedtls|sx1302"
+    # all — everything related to BasicStation/LoRa/mbedtls/sx1302/python
+    PATTERN="basicstation|lora|mbedtls|sx1302|python"
 fi
 
 mapfile -t PACKAGES < <(find bin/packages -name "*.ipk" | grep -E "${PATTERN}")
@@ -108,6 +107,15 @@ sshpass -e ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" << EO
     rm -rf ${REMOTE_DIR}
     rm /tmp/${BUNDLE_TAR}
 EOF
+
+# 4. Direct SCP of source files that may have changed since last ipk build
+#echo "Syncing source Lua service file..."
+#LUA_SRC="package/feeds/vuci/vuci-app-basicstation-api/files/usr/lib/lua/api/services/basicstation.lua"
+#LUA_DST="/usr/local/usr/lib/lua/api/services/basicstation.lua"
+#if [ -f "${LUA_SRC}" ]; then
+#    sshpass -e scp -o StrictHostKeyChecking=no "${LUA_SRC}" "${REMOTE_USER}@${REMOTE_HOST}:${LUA_DST}"
+#    echo "✅ Lua source synced"
+#fi
 
 if [ $? -eq 0 ]; then
     echo "--------------------------"

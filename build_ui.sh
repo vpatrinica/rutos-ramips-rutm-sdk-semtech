@@ -1,46 +1,92 @@
 #!/bin/bash
 
-# Script to build vuci-app-basicstation-ui
-# Automatically increments build number, updates build time, and runs dockerbuild
+# AVP Build Script
+# Usage: ./build_ui.sh [vuci|station|all]
+#
+#   vuci     – Build VUCI UI packages only (basicstation-ui + basicstation-api)
+#   station  – Build VUCI + lora-basicstation
+#   all      – Build VUCI + lora-basicstation + python packages
+#
+# Default: vuci
 
 set -e
 
-echo "Building vuci-app-basicstation-ui..."
+MODE="${1:-vuci}"
 
 UI_SRC_DIR="package/feeds/vuci/vuci-app-basicstation-ui/src"
 BUILD_FILE="${UI_SRC_DIR}/build.json"
 BUILD_NUM_FILE="${UI_SRC_DIR}/.build_number"
 
-# Ensure .build_number exists
-if [ ! -f "${BUILD_NUM_FILE}" ]; then
-    echo "0" > "${BUILD_NUM_FILE}"
-fi
-
-# Increment build number
-BUILD_NUM=$(cat "${BUILD_NUM_FILE}")
-BUILD_NUM=$((BUILD_NUM + 1))
+# ---------- Build number bookkeeping ----------
+[ -f "${BUILD_NUM_FILE}" ] || echo "0" > "${BUILD_NUM_FILE}"
+BUILD_NUM=$(( $(cat "${BUILD_NUM_FILE}") + 1 ))
 echo "${BUILD_NUM}" > "${BUILD_NUM_FILE}"
-
-# Get current time
 BUILD_TIME=$(date +'%Y-%m-%d %H:%M')
-
-echo "Setting build version to '${BUILD_TIME}' and build number to ${BUILD_NUM}..."
-
-# Write build.json
-cat > "${BUILD_FILE}" << EOF
+cat > "${BUILD_FILE}" <<EOF
 {"buildVersion": "${BUILD_TIME}", "buildNumber": ${BUILD_NUM}}
 EOF
 
-echo "Running dockerbuild clean..."
-./scripts/dockerbuild make package/feeds/vuci/vuci-app-basicstation-ui/clean V=sc
+# ---------- Helper ----------
+build_pkg() {
+    local pkg="$1"
+    echo "── clean  ${pkg}"
+    ./scripts/dockerbuild make "${pkg}/clean" V=sc
+    echo "── build  ${pkg}"
+    ./scripts/dockerbuild make "${pkg}/compile" V=sc
+}
 
-echo "Running dockerbuild compile basicstation-ui..."
-./scripts/dockerbuild make package/feeds/vuci/vuci-app-basicstation-ui/compile V=sc
+# ---------- VUCI (always built) ----------
+echo "═══════════════════════════════════════"
+echo "  Build mode : ${MODE}"
+echo "  Build #    : ${BUILD_NUM}"
+echo "  Timestamp  : ${BUILD_TIME}"
+echo "═══════════════════════════════════════"
 
-echo "Running dockerbuild clean basicstation-api..."
-./scripts/dockerbuild make package/feeds/vuci/vuci-app-basicstation-api/clean V=sc
+echo ""
+echo "▸ Building VUCI packages..."
+build_pkg package/feeds/vuci/vuci-app-basicstation-ui
+build_pkg package/feeds/vuci/vuci-app-basicstation-api
 
-echo "Running dockerbuild compile basicstation-api..."
-./scripts/dockerbuild make package/feeds/vuci/vuci-app-basicstation-api/compile V=sc
+# ---------- BasicStation (station | all) ----------
+if [ "${MODE}" = "station" ] || [ "${MODE}" = "all" ]; then
+    echo ""
+    echo "▸ Building lora-basicstation..."
+    build_pkg package/feeds/packages/lora-basicstation
+fi
 
-echo "Build complete!"
+# ---------- Python packages (all) ----------
+if [ "${MODE}" = "all" ]; then
+    echo ""
+    echo "▸ Building Python packages..."
+
+    # Core python3 runtime
+    build_pkg package/lang/python/python3
+
+    # Third-party python packages used by the project
+    PYTHON_PKGS=(
+        python-pyserial
+        python-pymodbus
+        python-paramiko
+        python-six
+        python-uci
+        python-requests
+        python-urllib3
+        python-certifi
+        python-chardet
+        python-idna
+    )
+
+    for pkg in "${PYTHON_PKGS[@]}"; do
+        pkgpath="package/lang/python/${pkg}"
+        if [ -d "${pkgpath}" ]; then
+            build_pkg "${pkgpath}"
+        else
+            echo "   ⚠ ${pkgpath} not found, skipping"
+        fi
+    done
+fi
+
+echo ""
+echo "═══════════════════════════════════════"
+echo "  ✅ Build complete! (mode: ${MODE})"
+echo "═══════════════════════════════════════"
