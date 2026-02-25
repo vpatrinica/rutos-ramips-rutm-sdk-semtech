@@ -27,9 +27,9 @@ echo "Creating bundle tarball..."
 
 
 # Bundle type controls which IPKs are packaged.
-#   vuci    – VUCI BasicStation web UI packages only
+#   vuci    – VUCI packages (basicstation-ui + basicstation-api)
 #   station – VUCI + lora-basicstation
-#   all     – VUCI + lora-basicstation + python + deps
+#   all     – station + python + deps
 
 BUNDLE_TYPE="${1:-vuci}"
 echo "Bundle type: ${BUNDLE_TYPE}"

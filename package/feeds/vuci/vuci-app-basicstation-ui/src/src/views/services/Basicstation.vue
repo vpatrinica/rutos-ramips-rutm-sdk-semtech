@@ -324,12 +324,13 @@ export default {
       };
 
       try {
-        // 1. Named sections — each has a known .name matching the section name
+        // 1. Named sections — each looks in its OWN data-key for the edited data
         const namedSections = ['station', 'auth', 'sx130x'];
         for (const sid of namedSections) {
-          const item = findByName('station', sid) || findByName(sid, sid);
+          // Each section's edits live in uciData[sid], NOT uciData.station
+          const item = findByName(sid, sid);
           if (!item) {
-            console.warn(`Section "${sid}" not found in uciData`);
+            console.warn(`Section "${sid}" not found in uciData.${sid}`);
             continue;
           }
           const payload = stripMeta(item);

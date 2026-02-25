@@ -3,9 +3,9 @@
 # AVP Build Script
 # Usage: ./build_ui.sh [vuci|station|all]
 #
-#   vuci     – Build VUCI UI packages only (basicstation-ui + basicstation-api)
+#   vuci     – Build VUCI packages (basicstation-ui + basicstation-api)
 #   station  – Build VUCI + lora-basicstation
-#   all      – Build VUCI + lora-basicstation + python packages
+#   all      – Build station + python packages
 #
 # Default: vuci
 
@@ -47,7 +47,7 @@ echo "▸ Building VUCI packages..."
 build_pkg package/feeds/vuci/vuci-app-basicstation-ui
 build_pkg package/feeds/vuci/vuci-app-basicstation-api
 
-# ---------- BasicStation (station | all) ----------
+# ---------- Station (station | all) ----------
 if [ "${MODE}" = "station" ] || [ "${MODE}" = "all" ]; then
     echo ""
     echo "▸ Building lora-basicstation..."
