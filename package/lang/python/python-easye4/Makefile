@@ -50,6 +50,8 @@ define Package/easye4-service/install
 	$(INSTALL_CONF) ./files/easye4.config $(1)/etc/config/easye4
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/easye4.init $(1)/etc/init.d/easye4
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/tty
+	$(INSTALL_BIN) ./files/99-modbus-alias.sh $(1)/etc/hotplug.d/tty/99-modbus-alias.sh
 endef
 
 $(eval $(call Py3Package,python3-easye4))

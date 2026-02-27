@@ -28,6 +28,7 @@ def main():
     parser.add_argument(
         "--use_https", action="store_true", help="Use HTTPS instead of HTTP"
     )
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
 
     # MQTT arguments
     parser.add_argument("--mqtt_broker", help="MQTT broker host")
@@ -56,6 +57,9 @@ def main():
     )
 
     args = parser.parse_args()
+
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     # Ensure interval is at least 500ms
     interval_s = max(500, args.interval) / 1000.0

@@ -16,6 +16,7 @@ start_service() {
 	
 	config_get ip main ip
 	config_get_bool use_https main use_https 0
+	config_get_bool debug main debug 0
 	config_get device_id main device_id
 	config_get auth_scheme main auth_scheme
 	config_get auth_user main auth_user
@@ -45,6 +46,7 @@ start_service() {
 	procd_set_param command /usr/local/usr/bin/python3 "$PROG"
 	procd_append_param command --ip "$ip"
 	[ "$use_https" -eq 1 ] && procd_append_param command --use_https
+	[ "$debug" -eq 1 ] && procd_append_param command --debug
 	
 	
 	[ -n "$device_id" ] && procd_append_param command --device_id "$device_id"
@@ -92,6 +94,7 @@ start_service() {
 	# Construct a display string of the command for logging
 	local cmd_log="/usr/local/usr/bin/python3 $PROG --ip $ip"
 	[ "$use_https" -eq 1 ] && cmd_log="$cmd_log --use_https"
+	[ "$debug" -eq 1 ] && cmd_log="$cmd_log --debug"
 	[ -n "$device_id" ] && cmd_log="$cmd_log --device_id $device_id"
 	[ -n "$auth_scheme" ] && cmd_log="$cmd_log --auth_scheme $auth_scheme"
 	[ -n "$auth_user" ] && cmd_log="$cmd_log --auth_user $auth_user"

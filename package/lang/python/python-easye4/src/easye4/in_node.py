@@ -1,7 +1,11 @@
 import base64
+import logging
 import ssl
 import urllib.request
 from .decoder import decode_parse
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_legacy_ssl_context():
@@ -39,6 +43,9 @@ class EasyE4In:
 
         # Real HTTP behavior (simplified for test, normally would construct ?elm=... query)
         url = f"{self.com.protocol}://{self.com.ip}/api/get/data?elm=STATE+DEVLOCATION+DATE+TIME"
+        logger.debug(
+            f"\\n\\nDEBUG: URL={url}, AUTH={self.com.base_auth_user}:***\\n\\n"
+        )
         req = urllib.request.Request(url)
         req.add_header("Content-Type", "application/json")
         req.add_header("Connection", "keep-alive")

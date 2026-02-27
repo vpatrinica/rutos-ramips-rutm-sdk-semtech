@@ -67,6 +67,7 @@ class ModbusPublisher:
                 context=self.context,
                 port=self.serial_port,
                 framer=ModbusRtuFramer,
+                timeout=1,
                 baudrate=self.baudrate,
             )
 
