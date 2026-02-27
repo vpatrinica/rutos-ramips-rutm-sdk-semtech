@@ -18,11 +18,9 @@ for pkgfile in *.ipk; do
     fi
 done
 
-# install every IPK in the directory
-for pkgfile in *.ipk; do
-    echo "Installing $pkgfile..."
-    opkg install --force-maintainer "$pkgfile"
-done
+# install all IPKs at once to allow OPKG to resolve dependencies automatically
+echo "Installing all newly bundled packages..."
+opkg install --force-maintainer *.ipk
 
 echo "Reloading ACLs and restarting RPCD..."
 ubus call session reload_acls

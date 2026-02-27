@@ -4,7 +4,7 @@ USE_PROCD=1
 START=99
 STOP=10
 
-PROG=/usr/bin/easye4_service
+PROG=/usr/local/usr/bin/easye4_service
 
 start_service() {
 	config_load 'easye4'
@@ -15,6 +15,7 @@ start_service() {
 	fi
 	
 	config_get ip main ip
+	config_get_bool use_https main use_https 0
 	config_get device_id main device_id
 	config_get auth_scheme main auth_scheme
 	config_get auth_user main auth_user
@@ -41,8 +42,10 @@ start_service() {
 	fi
 	
 	procd_open_instance
-	procd_set_param command "$PROG"
+	procd_set_param command /usr/local/usr/bin/python3 "$PROG"
 	procd_append_param command --ip "$ip"
+	[ "$use_https" -eq 1 ] && procd_append_param command --use_https
+	
 	
 	[ -n "$device_id" ] && procd_append_param command --device_id "$device_id"
 	[ -n "$auth_scheme" ] && procd_append_param command --auth_scheme "$auth_scheme"
@@ -50,12 +53,25 @@ start_service() {
 	[ -n "$auth_pass" ] && procd_append_param command --auth_pass "$auth_pass"
 	[ -n "$interval" ] && procd_append_param command --interval "$interval"
 	
+	logger -t easye4 "IP address: $ip"
+	logger -t easye4 "Device ID: $device_id"
+	logger -t easye4 "Auth scheme: $auth_scheme"
+	logger -t easye4 "Auth user: $auth_user"
+	logger -t easye4 "Auth pass: $auth_pass"
+	logger -t easye4 "Interval: $interval"
+	
 	if [ "$mqtt_enabled" -eq 1 ] && [ -n "$mqtt_broker" ]; then
 		procd_append_param command --mqtt_broker "$mqtt_broker"
 		[ -n "$mqtt_port" ] && procd_append_param command --mqtt_port "$mqtt_port"
 		[ -n "$mqtt_topic" ] && procd_append_param command --mqtt_topic "$mqtt_topic"
 		[ -n "$mqtt_user" ] && procd_append_param command --mqtt_user "$mqtt_user"
 		[ -n "$mqtt_pass" ] && procd_append_param command --mqtt_pass "$mqtt_pass"
+		logger -t easye4 "MQTT mode: $mqtt_enabled"
+		logger -t easye4 "MQTT broker: $mqtt_broker"
+		logger -t easye4 "MQTT port: $mqtt_port"
+		logger -t easye4 "MQTT topic: $mqtt_topic"
+		logger -t easye4 "MQTT user: $mqtt_user"
+		logger -t easye4 "MQTT pass: $mqtt_pass"
 	fi
 	
 	if [ "$modbus_mode" != "none" ]; then
@@ -65,11 +81,46 @@ start_service() {
 		[ -n "$modbus_serial" ] && procd_append_param command --modbus_serial "$modbus_serial"
 		[ -n "$modbus_baud" ] && procd_append_param command --modbus_baud "$modbus_baud"
 		[ -n "$modbus_slave_id" ] && procd_append_param command --modbus_slave_id "$modbus_slave_id"
+	    logger -t easye4 "Modbus mode: $modbus_mode"
+		logger -t easye4 "Modbus host: $modbus_host"
+		logger -t easye4 "Modbus port: $modbus_port"
+		logger -t easye4 "Modbus serial: $modbus_serial"
+		logger -t easye4 "Modbus baud: $modbus_baud"
+		logger -t easye4 "Modbus slave ID: $modbus_slave_id"
 	fi
 	
+	# Construct a display string of the command for logging
+	local cmd_log="/usr/local/usr/bin/python3 $PROG --ip $ip"
+	[ "$use_https" -eq 1 ] && cmd_log="$cmd_log --use_https"
+	[ -n "$device_id" ] && cmd_log="$cmd_log --device_id $device_id"
+	[ -n "$auth_scheme" ] && cmd_log="$cmd_log --auth_scheme $auth_scheme"
+	[ -n "$auth_user" ] && cmd_log="$cmd_log --auth_user $auth_user"
+	[ -n "$auth_pass" ] && cmd_log="$cmd_log --auth_pass $auth_pass"
+	[ -n "$interval" ] && cmd_log="$cmd_log --interval $interval"
+	
+	if [ "$mqtt_enabled" -eq 1 ] && [ -n "$mqtt_broker" ]; then
+		cmd_log="$cmd_log --mqtt_broker $mqtt_broker"
+		[ -n "$mqtt_port" ] && cmd_log="$cmd_log --mqtt_port $mqtt_port"
+		[ -n "$mqtt_topic" ] && cmd_log="$cmd_log --mqtt_topic $mqtt_topic"
+		[ -n "$mqtt_user" ] && cmd_log="$cmd_log --mqtt_user $mqtt_user"
+		[ -n "$mqtt_pass" ] && cmd_log="$cmd_log --mqtt_pass $mqtt_pass"
+	fi
+	
+	if [ "$modbus_mode" != "none" ]; then
+		cmd_log="$cmd_log --modbus_mode $modbus_mode"
+		[ -n "$modbus_host" ] && cmd_log="$cmd_log --modbus_host $modbus_host"
+		[ -n "$modbus_port" ] && cmd_log="$cmd_log --modbus_port $modbus_port"
+		[ -n "$modbus_serial" ] && cmd_log="$cmd_log --modbus_serial $modbus_serial"
+		[ -n "$modbus_baud" ] && cmd_log="$cmd_log --modbus_baud $modbus_baud"
+		[ -n "$modbus_slave_id" ] && cmd_log="$cmd_log --modbus_slave_id $modbus_slave_id"
+	fi
+
+	logger -t easye4 "Starting easye4 service"
+	procd_set_param env PYTHONUNBUFFERED=1
 	procd_set_param respawn
 	procd_set_param stdout 1
 	procd_set_param stderr 1
+	logger -t easye4 "Executing command: $cmd_log"
 	procd_close_instance
 }
 

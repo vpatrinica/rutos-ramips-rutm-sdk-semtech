@@ -25,6 +25,9 @@ def main():
     parser.add_argument(
         "--interval", type=int, default=15000, help="Polling interval in milliseconds"
     )
+    parser.add_argument(
+        "--use_https", action="store_true", help="Use HTTPS instead of HTTP"
+    )
 
     # MQTT arguments
     parser.add_argument("--mqtt_broker", help="MQTT broker host")
@@ -57,11 +60,13 @@ def main():
     # Ensure interval is at least 500ms
     interval_s = max(500, args.interval) / 1000.0
 
-    logger.info(f"Initializing EasyE4 connection to {args.ip}")
+    proto = "HTTPS" if args.use_https else "HTTP"
+    logger.info(f"Initializing EasyE4 connection to {args.ip} via {proto}")
     com_node = EasyE4Com(
         device_id=args.device_id,
         ip=args.ip,
         auth_scheme=args.auth_scheme,
+        protocol="https" if args.use_https else "http",
         base_auth_user=args.auth_user,
         base_auth_pass=args.auth_pass,
         cycle_time=max(500, args.interval),

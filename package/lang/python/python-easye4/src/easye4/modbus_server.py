@@ -7,8 +7,16 @@ try:
     from pymodbus.server import StartTcpServer, StartSerialServer
     from pymodbus.datastore import ModbusSequentialDataBlock
     from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext
+    from pymodbus.transaction import ModbusRtuFramer
 except ImportError:
-    pass
+    # PyModbus 2.x fallback
+    try:
+        from pymodbus.server.sync import StartTcpServer, StartSerialServer
+        from pymodbus.datastore import ModbusSequentialDataBlock
+        from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext
+        from pymodbus.transaction import ModbusRtuFramer
+    except ImportError:
+        pass
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +66,7 @@ class ModbusPublisher:
             StartSerialServer(
                 context=self.context,
                 port=self.serial_port,
-                framer="rtu",
+                framer=ModbusRtuFramer,
                 baudrate=self.baudrate,
             )
 

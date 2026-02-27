@@ -22,7 +22,7 @@ define Package/python3-easye4
   SUBMENU:=Python
   TITLE:=Eaton easyE4 API Integration
   URL:=https://example.com/easye4
-  DEPENDS:=+python3-light +python3-requests +python3-logging
+  DEPENDS:=+python3-light +python3-requests +python3-logging +python3-pahomqtt +python3-pymodbus
 endef
 
 define Package/python3-easye4/description

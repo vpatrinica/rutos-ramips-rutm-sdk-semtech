@@ -3730,6 +3730,8 @@ CONFIG_PACKAGE_python3-asyncio=m
 # CONFIG_PACKAGE_python3-asyncio-src is not set
 CONFIG_PACKAGE_python3-base=m
 # CONFIG_PACKAGE_python3-base-src is not set
+CONFIG_PACKAGE_python3-bcrypt=m
+# CONFIG_PACKAGE_python3-bcrypt-src is not set
 CONFIG_PACKAGE_python3-certifi=m
 # CONFIG_PACKAGE_python3-certifi-src is not set
 CONFIG_PACKAGE_python3-cffi=m
@@ -3751,6 +3753,7 @@ CONFIG_PACKAGE_python3-decimal=m
 # CONFIG_PACKAGE_python3-dev is not set
 CONFIG_PACKAGE_python3-distutils=m
 # CONFIG_PACKAGE_python3-distutils-src is not set
+# CONFIG_PACKAGE_python3-easye4 is not set
 CONFIG_PACKAGE_python3-email=m
 # CONFIG_PACKAGE_python3-email-src is not set
 CONFIG_PACKAGE_python3-idna=m
@@ -3776,6 +3779,8 @@ CONFIG_PACKAGE_python3-openssl=m
 # CONFIG_PACKAGE_python3-packaging is not set
 CONFIG_PACKAGE_python3-pahomqtt=m
 # CONFIG_PACKAGE_python3-pahomqtt-src is not set
+CONFIG_PACKAGE_python3-paramiko=m
+# CONFIG_PACKAGE_python3-paramiko-src is not set
 # CONFIG_PACKAGE_python3-pkg-resources is not set
 CONFIG_PACKAGE_python3-pluggy=m
 # CONFIG_PACKAGE_python3-pluggy-src is not set
@@ -3787,6 +3792,8 @@ CONFIG_PACKAGE_python3-pydoc=m
 # CONFIG_PACKAGE_python3-pydoc-src is not set
 CONFIG_PACKAGE_python3-pymodbus=m
 # CONFIG_PACKAGE_python3-pymodbus-src is not set
+CONFIG_PACKAGE_python3-pynacl=m
+# CONFIG_PACKAGE_python3-pynacl-src is not set
 CONFIG_PACKAGE_python3-pyopenssl=m
 # CONFIG_PACKAGE_python3-pyopenssl-src is not set
 CONFIG_PACKAGE_python3-pyserial=m
@@ -4195,6 +4202,14 @@ CONFIG_PACKAGE_libpcre2=y
 CONFIG_PACKAGE_libreadline=m
 # CONFIG_PACKAGE_libsmartcols is not set
 CONFIG_PACKAGE_libsmpp34=m
+CONFIG_PACKAGE_libsodium=m
+
+#
+# Configuration
+#
+CONFIG_LIBSODIUM_MINIMAL=y
+# end of Configuration
+
 CONFIG_PACKAGE_libtag=y
 CONFIG_PACKAGE_libtalloc=m
 CONFIG_PACKAGE_libtasn1=m
@@ -5491,8 +5506,4 @@ CONFIG_VUCI_USE_HOST_NODE=y
 CONFIG_VUCI_NODE_EXTRA_BIN_PATH=""
 # end of Configuration
 # end of WebUI
-CONFIG_PACKAGE_python3-paramiko=m
-CONFIG_PACKAGE_python3-bcrypt=m
-CONFIG_PACKAGE_python3-pynacl=m
-CONFIG_PACKAGE_libsodium=m
-CONFIG_PACKAGE_python3-openssl=m
+CONFIG_PACKAGE_easye4-service=y
