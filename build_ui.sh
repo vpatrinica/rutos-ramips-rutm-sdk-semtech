@@ -1,10 +1,11 @@
 #!/bin/bash
 
 # AVP Build Script
-# Usage: ./build_ui.sh [vuci|station|all]
+# Usage: ./build_ui.sh [vuci|station|python|all]
 #
 #   vuci     – Build VUCI packages (basicstation-ui + basicstation-api)
 #   station  – Build VUCI + lora-basicstation
+#   python   – Build python packages only
 #   all      – Build station + python packages
 #
 # Default: vuci
@@ -35,17 +36,20 @@ build_pkg() {
     ./scripts/dockerbuild make "${pkg}/compile" V=sc
 }
 
-# ---------- VUCI (always built) ----------
+# ---------- Common build info ----------
 echo "═══════════════════════════════════════"
 echo "  Build mode : ${MODE}"
 echo "  Build #    : ${BUILD_NUM}"
 echo "  Timestamp  : ${BUILD_TIME}"
 echo "═══════════════════════════════════════"
 
-echo ""
-echo "▸ Building VUCI packages..."
-build_pkg package/feeds/vuci/vuci-app-basicstation-ui
-build_pkg package/feeds/vuci/vuci-app-basicstation-api
+# ---------- VUCI (vuci | station | all) ----------
+if [ "${MODE}" = "vuci" ] || [ "${MODE}" = "station" ] || [ "${MODE}" = "all" ]; then
+    echo ""
+    echo "▸ Building VUCI packages..."
+    build_pkg package/feeds/vuci/vuci-app-basicstation-ui
+    build_pkg package/feeds/vuci/vuci-app-basicstation-api
+fi
 
 # ---------- Station (station | all) ----------
 if [ "${MODE}" = "station" ] || [ "${MODE}" = "all" ]; then
@@ -54,8 +58,8 @@ if [ "${MODE}" = "station" ] || [ "${MODE}" = "all" ]; then
     build_pkg package/feeds/packages/lora-basicstation
 fi
 
-# ---------- Python packages (all) ----------
-if [ "${MODE}" = "all" ]; then
+# ---------- Python packages (python | all) ----------
+if [ "${MODE}" = "python" ] || [ "${MODE}" = "all" ]; then
     echo ""
     echo "▸ Building Python packages..."
 
@@ -74,6 +78,8 @@ if [ "${MODE}" = "all" ]; then
         python-certifi
         python-chardet
         python-idna
+        pahomqtt
+        python-easye4
     )
 
     for pkg in "${PYTHON_PKGS[@]}"; do

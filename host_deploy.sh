@@ -29,6 +29,7 @@ echo "Creating bundle tarball..."
 # Bundle type controls which IPKs are packaged.
 #   vuci    – VUCI packages (basicstation-ui + basicstation-api)
 #   station – VUCI + lora-basicstation
+#   python  – Python packages only
 #   all     – station + python + deps
 
 BUNDLE_TYPE="${1:-vuci}"
@@ -39,9 +40,11 @@ if [ "${BUNDLE_TYPE}" = "vuci" ]; then
     PATTERN="vuci-app-basicstation-(api|ui)"
 elif [ "${BUNDLE_TYPE}" = "station" ]; then
     PATTERN="vuci-app-basicstation-(api|ui)|lora-basicstation"
+elif [ "${BUNDLE_TYPE}" = "python" ]; then
+    PATTERN="python|pahomqtt|easye4"
 else
     # all — everything related to BasicStation/LoRa/mbedtls/sx1302/python
-    PATTERN="basicstation|lora|mbedtls|sx1302|python"
+    PATTERN="basicstation|lora|mbedtls|sx1302|python|pahomqtt|easye4"
 fi
 
 mapfile -t PACKAGES < <(find bin/packages -name "*.ipk" | grep -E "${PATTERN}")
@@ -74,11 +77,9 @@ for pkgfile in *.ipk; do
     fi
 done
 
-# install every IPK in the directory
-for pkgfile in *.ipk; do
-    echo "Installing $pkgfile..."
-    opkg install --force-maintainer "$pkgfile"
-done
+# install all IPKs at once to allow OPKG to resolve dependencies automatically
+echo "Installing all newly bundled packages..."
+opkg install --force-maintainer *.ipk
 
 echo "Reloading ACLs and restarting RPCD..."
 ubus call session reload_acls
